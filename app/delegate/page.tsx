@@ -121,12 +121,12 @@ function DelegateView() {
                                 <p className="font-medium text-base md:text-lg">Position paper turned in</p>
                                 <p className="text-sm md:text-base opacity-80">
                                     Delegates are strongly encouraged to turn in position papers 
-                                    to ensure they have a solid grasp of their committee's topics 
+                                    to ensure they have a solid grasp of their committee&apos;s topics 
                                     as well as the foundations for potential resolutions and 
                                     directives that can be pursued in committee. The due date to be 
                                     considered for a research award is <b>February 15</b> and the due date 
                                     to be considered for any award is <b>February 22</b>. To submit, click 
-                                    the "Position Paper" tab, upload your position paper(s), and 
+                                    the &quot;Position Paper&quot; tab, upload your position paper(s), and 
                                     click submit.
                                 </p>
                             </div>
@@ -145,7 +145,7 @@ function DelegateView() {
                                     is due on <b>February 15</b> and the waiver will become available on <b>January 25</b> on
                                     this tab.
                                     <br/> <br/>
-                                    This checklist item is updated manually by BMUN's USG of 
+                                    This checklist item is updated manually by BMUN&apos;s USG of 
                                     External Relations, every non-holiday Wednesday and Sunday night on a 
                                     rolling basis. If you have submitted a waiver electronically 
                                     and this item has not been checked, please contact info@bmun.org

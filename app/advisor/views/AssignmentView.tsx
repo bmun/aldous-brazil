@@ -4,8 +4,6 @@ import { AssignmentProps, loadAssignments, updateAssignment } from "@/app/utils/
 import { useEffect, useState } from "react";
 import DelegateSubmission from "../modals/DelegateSubmission";
 import Image from 'next/image';
-import CountriesPanel from "../panels/CountriesPanel";
-import CommitteesPanel from "../panels/CommittessPanel";
 import { SINGLE_COMMITTEE } from "@/app/utils/generalHelper";
 
 function AssignmentView() {

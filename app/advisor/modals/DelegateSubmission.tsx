@@ -1,6 +1,6 @@
 'use client';
 
-import { DelegateProps, signUpDelegate } from "@/app/utils/supabaseHelpers";
+import { signUpDelegate } from "@/app/utils/supabaseHelpers";
 import { useEffect, useState } from "react";
 import { SINGLE_COMMITTEE } from "@/app/utils/generalHelper";
 
@@ -17,7 +17,7 @@ interface DelegateSubmissionProps {
 
 function DelegateSubmission({countryName, 
         committeeName,
-        specialized,
+        specialized: _specialized,
         assignmentId,
         delegateIds,
         submittingDelegates, 
