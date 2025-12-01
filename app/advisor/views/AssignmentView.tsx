@@ -6,6 +6,7 @@ import DelegateSubmission from "../modals/DelegateSubmission";
 import Image from 'next/image';
 import CountriesPanel from "../panels/CountriesPanel";
 import CommitteesPanel from "../panels/CommittessPanel";
+import { SINGLE_COMMITTEE } from "@/app/utils/generalHelper";
 
 function AssignmentView() {
     const [assignments, setAssignments] = useState<AssignmentProps[]>([]);
@@ -14,11 +15,11 @@ function AssignmentView() {
 
     const [submittingDelegates, setSubmittingDelegates] = useState(false);
 
-    const [assignmentId, ______] = useState(0);
-    const [assignmentDelegates, __] = useState<DelegateProps[]>([]);
-    const [specialized, ___] = useState(false);
-    const [committeeName, ____] = useState("");
-    const [countryName, _] = useState("");
+    const [assignmentId, setAssignmentId] = useState(0);
+    const [assignmentDelegates, setAssignmentDelegates] = useState<DelegateProps[]>([]);
+    const [specialized, setSpecialized] = useState(false);
+    const [committeeName, setCommitteeName] = useState("");
+    const [countryName, setCountryName] = useState("");
 
     useEffect(() => {(async () => {
         const newAssignments = await loadAssignments();
@@ -53,7 +54,7 @@ function AssignmentView() {
             <div className="flex flex-col gap-2 mb-4 h-full">
                 <div className="flex flex-row gap-6 mr-2 justify-between items-end">
                     <div className="text-2xl">
-                        Round 1 Assignments are <div className="badge badge-primary badge-xl text-white">Released</div><br></br>
+                        Round 2 Assignments are <div className="badge badge-primary badge-xl text-white">Released</div><br></br>
                     </div>
                 </div>
                 <div className="flex flex-col gap-4">
@@ -66,14 +67,6 @@ function AssignmentView() {
                         </div>
                         :
                         <div className="overflow-scroll rounded-xl border-2 border-primary bg-base-100">
-                        <p className="text-2xl p-3 m-2 bg-black rounded-2xl">
-                            Delegate accounts are currently under construction. The assignment button is inaccurate and committee assignments 
-                            for dual-delegate committees correspond to 2 assignments, while assignmnets for single-delegate committees correspond
-                            to 1 assignment. Creating delegate accounts will be available
-                            by <span className="font-bold text-primary">November, 17th</span>. Please direct any questions 
-                            to <span className="font-bold text-primary">tech@bmun.org</span> 
-                            and <span className="font-bold text-primary">info@bmun.org</span>.
-                        </p>
                         <table className="table table-zebra text-xl text-center">
                             <thead>
                                 <tr className="text-lg font-bold">
@@ -96,17 +89,19 @@ function AssignmentView() {
                                         <td>
                                             <button 
                                                 className="btn btn-primary btn-lg" 
-                                                disabled={assignment.rejected || true}
-                                                /*onClick={() => {
-                                                    setAssignmentId(assignment.id);
-                                                    setAssignmentDelegates(delegates.filter(delegate => delegate.assignment_id === assignment.id));
-                                                    setSpecialized(false);
-                                                    setCommitteeName(assignment.committee_name);
-                                                    setCountryName(assignment.country_name);
-                                                    setSubmittingDelegates(true);
-                                                }}*/
+                                                disabled={assignment.rejected || delegates.filter(delegate => delegate.assignment_id === assignment.id).length == (SINGLE_COMMITTEE.includes(assignment.committee_name) ? 1 : 2)}
+                                                onClick={() => {
+                                                    if (assignment.id) {
+                                                        setAssignmentId(assignment.id);
+                                                        setAssignmentDelegates(delegates.filter(delegate => delegate.assignment_id === assignment.id));
+                                                        setSpecialized(false);
+                                                        setCommitteeName(assignment.committee_name);
+                                                        setCountryName(assignment.country_name);
+                                                        setSubmittingDelegates(true);
+                                                    }
+                                                }}
                                             >
-                                                Assign ({delegates.filter(delegate => delegate.assignment_id === assignment.id).length}/2)
+                                                Assign ({delegates.filter(delegate => delegate.assignment_id === assignment.id).length}/{SINGLE_COMMITTEE.includes(assignment.committee_name) ? "1" : "2"})
                                             </button>
                                         </td>
                                         <td className="text-secondary">

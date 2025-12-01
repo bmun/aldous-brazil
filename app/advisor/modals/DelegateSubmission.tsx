@@ -98,23 +98,6 @@ function DelegateSubmission({countryName,
         setPrimaryLoading(false);
     }
 
-    const handleSecondarySubmission = async () => {
-        setSecondaryLoading(true);
-        try {
-            await signUpDelegate(
-                secondaryFirstName,
-                secondaryLastName,
-                secondaryEmail,
-                assignmentId
-            );
-            setSecondaryFilled(true);
-        } catch (e) {
-            console.error(e);
-            window.alert("Failed to submit delegate. Please try again later.");
-        }
-        setSecondaryLoading(false);
-    }
-
     if (!submittingDelegates) {
         return (
             <div></div>
@@ -124,13 +107,13 @@ function DelegateSubmission({countryName,
     return (
         <div className="fixed z-50 inset-0 w-full h-full flex flex-row items-center justify-center">
             <div className="absolute z-10 w-full h-full bg-black opacity-50" onClick={() => setSubmittingDelegates(false)}></div>
-            <fieldset className="fieldset z-20 bg-base-200 border-base-300 w-5/12 max-h-8/12 overflow-scroll rounded-box border p-4 opacity-100">
-                <h5 className="text-6xl">
-                    Assignment: <span className="text-primary">{committeeName}</span> {countryName}
+            <fieldset className="fieldset z-20 bg-black border-2 border-primary w-3/12 max-h-8/12 overflow-scroll rounded-box p-4 opacity-100">
+                <h5 className="text-5xl">
+                    <span className="text-primary">{committeeName}</span> <span className="text-nowrap">{countryName}</span>
                 </h5>
                 <div className="flex flex-col gap-2 lg:gap-0 lg:flex-row">
                     <div>
-                        <h3 className="text-4xl">First Delegate</h3>
+                        <h3 className="text-4xl">Delegate Information</h3>
                         <label className="label text-xl">First Name</label>
                         <input 
                             type="text" 
@@ -153,7 +136,7 @@ function DelegateSubmission({countryName,
                             disabled={primaryFilled || primaryLoading}
                             onChange={(event) => setPrimaryEmail(event.target.value)}/>
                         <button 
-                            className="btn btn-primary btn-lg w-full mt-2"
+                            className="btn btn-primary btn-lg w-full mt-4"
                             disabled={primaryFilled || primaryLoading ||
                                 primaryFirstName.length == 0 ||
                                 primaryLastName.length == 0 ||
@@ -161,43 +144,6 @@ function DelegateSubmission({countryName,
                             onClick={async () => await handlePrimarySubmission()}
                         >
                             {primaryLoading ? <span className="loading loading-spinner"></span> : <></>}
-                            Submit Delegate
-                        </button>
-                    </div>
-                    <div className="divider divider-horizontal"></div>
-                    <div>
-                        <h3 className="text-4xl">Second Delegate</h3>
-                        <label className="label text-xl">First Name</label>
-                        <input 
-                            type="text" 
-                            className="input input-lg w-full"
-                            value={secondaryFirstName}
-                            onChange={(event) => setSecondaryFirstName(event.target.value)}
-                            disabled={specialized || secondaryFilled || secondaryLoading}/>
-                        <label className="label text-xl">Last Name</label>
-                        <input 
-                            type="text" 
-                            className="input input-lg w-full"
-                            value={secondaryLastName}
-                            onChange={(event) => setSecondaryLastName(event.target.value)}
-                            disabled={specialized || secondaryFilled || secondaryLoading}/>
-                        <label className="label text-xl">Email</label>
-                        <input 
-                            type="text" 
-                            className="input input-lg w-full"
-                            value={secondaryEmail}
-                            onChange={(event) => setSecondaryEmail(event.target.value)}
-                            disabled={specialized || secondaryFilled || secondaryLoading}/>
-                        <button 
-                            className="btn btn-primary btn-lg w-full mt-2"
-                            disabled={secondaryFilled || secondaryLoading ||
-                                specialized ||
-                                secondaryFirstName.length == 0 ||
-                                secondaryLastName.length == 0 ||
-                                !secondaryEmailValid}
-                            onClick={async () => await handleSecondarySubmission()}
-                        >
-                            {secondaryLoading ? <span className="loading loading-spinner"></span> : <></>}
                             Submit Delegate
                         </button>
                     </div>

@@ -114,28 +114,41 @@ export const defaultConferenceData = {
     current_conference: false
 };
 
-// TODO: Change this, hardcoded for speed
 export const COMMITTEE_LIST: string[] = [
-  "DISEC",
-  "SOCHUM",
-  "SIXTH",
-  "SPECPOL",
-  "IAEA",
-  "ITU",
-  "CSTD",
-  "UNCTAD",
-  "UNEP",
-  "UNHRC",
-  "UNESCO",
-  "ILO",
-  "Press Corps",
-  "UNSC",
-  "US Senate",
-  "World Cities Summit",
-  "WHO",
-  "Brexit",
-  "Fall of Tokugawa",
-  "Space Race"
+    "DISEC",
+    "SOCHUM",
+    "SIXTH",
+    "SPECPOL",
+    "IAEA",
+    "ITU",
+    "CSTD",
+    "UNCTAD",
+    "UNEP",
+    "UNHRC",
+    "UNESCO",
+    "ILO",
+    "Press",
+    "UNSC",
+    "US Senate",
+    "WCS",
+    "WHO",
+    "Brexit",
+    "Japan",
+    "JCC: USSR",
+    "JCC: USA"
+];
+
+export const SINGLE_COMMITTEE: string[] = [
+    "ITU",
+    "UNHRC",
+    "ILO",
+    "Press",
+    "US Senate",
+    "WCS",
+    "Brexit",
+    "Japan",
+    "JCC: USSR",
+    "JCC: USA"
 ];
 
 export const UN_COUNTRIES: string[] = [
