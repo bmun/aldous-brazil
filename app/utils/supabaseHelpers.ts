@@ -649,11 +649,8 @@ export async function getDelegatesAsAdvisor() {
 
 export async function getDelegatesByIds(userIds: string[]): Promise<DelegateProps[]> {
     if (!userIds || userIds.length === 0) {
-        console.log('getDelegatesByIds: No userIds provided');
         return [];
     }
-
-    console.log('getDelegatesByIds: Fetching delegates with IDs:', userIds);
     
     const {data, error} = await supabase.from('Users')
         .select('*')
@@ -665,7 +662,6 @@ export async function getDelegatesByIds(userIds: string[]): Promise<DelegateProp
         return [];
     }
 
-    console.log('getDelegatesByIds: Retrieved data:', data);
     return (data || []) as DelegateProps[];
 }
 
@@ -768,17 +764,6 @@ export async function loadAssignments() {
         return null;
     }
 
-    // DEBUG: Log assignments with delegate_ids to verify they're being loaded
-    if (data && data.length > 0) {
-        console.log('Loaded assignments with delegate_ids:', data.map(a => ({
-            id: a.id,
-            committee: a.committee_name,
-            country: a.country_name,
-            delegate_ids: a.delegate_ids || [],
-            delegate_count: (a.delegate_ids?.length || 0)
-        })));
-    }
-
     return data;
 }
 
@@ -813,7 +798,6 @@ export async function addDelegateToAssignment(assignmentId: number, delegateEmai
 
         // Check if delegate email is already in the list (avoid duplicates)
         if (currentDelegateEmails.includes(delegateEmail)) {
-            console.log("Delegate email already in assignment list");
             return { success: true };
         }
 
@@ -821,20 +805,16 @@ export async function addDelegateToAssignment(assignmentId: number, delegateEmai
         const updatedDelegateEmails = [...currentDelegateEmails, delegateEmail];
 
         // Update the assignment with the new delegate_ids array (emails)
-        const { error: updateError, data: updatedAssignment } = await supabase
+        const { error: updateError } = await supabase
             .from("Assignment")
             .update({ delegate_ids: updatedDelegateEmails })
-            .eq("id", assignmentId)
-            .select()
-            .single();
+            .eq("id", assignmentId);
 
         if (updateError) {
             console.error("Error updating assignment delegate_ids:", updateError);
             return { success: false, error: updateError.message || "Failed to update assignment" };
         }
 
-        console.log(`Added delegate email ${delegateEmail} to assignment ${assignmentId}`);
-        console.log(`Updated assignment delegate_ids (emails):`, updatedAssignment?.delegate_ids);
         return { success: true };
     } catch (error: any) {
         console.error("Unexpected error in addDelegateToAssignment:", error);

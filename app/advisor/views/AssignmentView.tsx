@@ -21,22 +21,6 @@ function AssignmentView() {
     useEffect(() => {(async () => {
         const newAssignments = await loadAssignments();
         
-        // DEBUG: Log initial assignments load to verify assignments are being fetched
-        console.log('Initial assignments loaded:', newAssignments);
-        
-        // DEBUG: Log delegate_ids for each assignment
-        if (newAssignments && newAssignments.length > 0) {
-            console.log('Assignments with delegate_ids breakdown:', 
-                newAssignments.map(a => ({
-                    id: a.id,
-                    committee: a.committee_name,
-                    country: a.country_name,
-                    delegate_ids: a.delegate_ids || [],
-                    delegate_count: (a.delegate_ids?.length || 0)
-                }))
-            );
-        }
-        
         if (newAssignments != null && newAssignments.length > 0) {
             // Sort assignments: not fully assigned first, then fully assigned, then rejected
             const sortedAssignments = [...newAssignments].sort((a, b) => {
@@ -134,13 +118,10 @@ function AssignmentView() {
             // If modal is open, update the delegate_ids array
             if (assignmentId) {
                 const currentAssignment = sortedAssignments.find(a => a.id === assignmentId);
-                console.log(`Refreshing delegate IDs for assignmentId ${assignmentId}:`, currentAssignment);
                 if (currentAssignment) {
                     const updatedDelegateIds = currentAssignment.delegate_ids || [];
-                    console.log(`Found ${updatedDelegateIds.length} delegate IDs in assignment:`, updatedDelegateIds);
                     setDelegateIds(updatedDelegateIds);
                 } else {
-                    console.log(`Assignment ${assignmentId} not found in sorted assignments`);
                     setDelegateIds([]);
                 }
             }
@@ -179,7 +160,7 @@ function AssignmentView() {
                                 <tr className="text-lg font-bold">
                                     <th>Committee</th>
                                     <th>Country</th>
-                                    <th>Delegate Assigned</th>
+                                    <th>Assign Delegates</th>
                                     <th>Assigned Delegates</th>
                                     <th>Position Paper Status</th>
                                     <th>Reject Assignment</th>
