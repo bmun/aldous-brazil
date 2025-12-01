@@ -30,70 +30,167 @@ export interface DelegateProps {
     last_name: string,
     email: string,
     school_id: number,
-    assignment_id: number
+    assignment_id: number | null
 }
 
-export async function signUpDelegate(first_name: string, last_name: string, email: string, assignment_id: number) {
-    const password = Array.from(crypto.getRandomValues(new Uint8Array(10)))
-        .map(n => "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[n % 62])
-        .join("");
+export async function signUpDelegate(first_name: string, last_name: string, email: string, assignment_id: number): Promise<{ success: boolean; error?: string }> {
+    try {
+        const password = Array.from(crypto.getRandomValues(new Uint8Array(10)))
+            .map(n => "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[n % 62])
+            .join("");
 
-    // Store the current admin session before signUp
-    const originalSession = await supabase.auth.getSession().then(({ data }) => data.session);
+        // Store the current admin session before signUp
+        const originalSession = await supabase.auth.getSession().then(({ data }) => data.session);
 
-    if (!originalSession) {
-        throw new Error('No session found. Cannot safely continue.');
-    }
+        if (!originalSession) {
+            return { success: false, error: 'No session found. Cannot safely continue.' };
+        }
 
-    // Sign up the new user (this will sign you in as them)
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: email,
-        password: password
-    });
+        // Get advisor info before signing up new user (since session will change)
+        const advisor = await getSupabaseUser();
+        if (!advisor || !advisor.school_id) {
+            return { success: false, error: 'Advisor session not found' };
+        }
+        const advisorSchoolId = advisor.school_id;
 
-    if (signUpError || signUpData == null || signUpData.user == null) {
-        console.error('Error creating user:', signUpError);
-        return;
-    }
-
-    // Restore the original session
-    const { error: restoreError } = await supabase.auth.setSession({
-        access_token: originalSession.access_token,
-        refresh_token: originalSession.refresh_token,
-    });
-
-    if (restoreError) {
-        console.error('Failed to restore admin session:', restoreError.message);
-    } else {
-        console.log('Admin session restored.');
-    }
-
-    const advisor = await getSupabaseUser();
-
-    const { error: userInsertError } = await supabase.from('Users')
-        .insert({
-            id: signUpData.user.id, 
-            user_type: "delegate",
-            first_name: first_name,
-            last_name: last_name,
+        // Sign up the new user (this will sign you in as them)
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
             email: email,
-            assignment_id: assignment_id,
-            school_id: advisor.school_id
+            password: password
         });
 
-    if (userInsertError) {
-        console.error(userInsertError);
-        return;
-    }
-    
-    const { data: resetData, error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'https://http://localhost:3000', // Where the user will be sent to set a new password
-    });
+        if (signUpError || signUpData == null || signUpData.user == null) {
+            console.error('Error creating user:', signUpError);
+            return { success: false, error: signUpError?.message || 'Failed to create user account' };
+        }
 
-    if (resetError) {
-        console.error('Error sending reset email:', resetError.message);
-    } else {
-        console.log('Reset email sent:', resetData);
+        // Small delay to ensure the new user session is fully established
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+        // Verify we're authenticated as the new user
+        const currentUser = await supabase.auth.getUser();
+        if (currentUser.data.user?.id !== signUpData.user.id) {
+            console.error('Session mismatch - not authenticated as new user');
+            // Try to restore advisor session and return error
+            await supabase.auth.setSession({
+                access_token: originalSession.access_token,
+                refresh_token: originalSession.refresh_token,
+            });
+            return { success: false, error: 'Failed to establish new user session' };
+        }
+
+        // DEBUG: Log the delegate creation attempt with key parameters
+        // This helps verify assignment_id, school_id, and email are correct before database insert
+        console.log('Creating delegate with:', {
+            user_id: signUpData.user.id,
+            assignment_id: assignment_id,
+            school_id: advisorSchoolId,
+            email: email,
+            current_session_user: currentUser.data.user?.id
+        });
+
+        // Insert user record while authenticated as the new user (to satisfy RLS policies)
+        // Users can typically insert their own records
+        // Note: We set assignment_id in Users table AND also add to delegate_ids array in Assignment table
+        const { error: userInsertError, data: insertedUser } = await supabase.from('Users')
+            .insert({
+                id: signUpData.user.id, 
+                user_type: "delegate",
+                first_name: first_name,
+                last_name: last_name,
+                email: email,
+                assignment_id: assignment_id,
+                school_id: advisorSchoolId
+            })
+            .select();
+
+        // Now restore the advisor session so we can continue with assignment updates
+        const { error: restoreError } = await supabase.auth.setSession({
+            access_token: originalSession.access_token,
+            refresh_token: originalSession.refresh_token,
+        });
+
+        if (restoreError) {
+            console.error('Failed to restore admin session:', restoreError.message);
+            // If we can't restore, we might still be able to continue, but log the error
+        }
+
+        if (userInsertError) {
+            // DEBUG: Log database insert errors to diagnose issues with user creation
+            console.error('Error inserting user:', userInsertError);
+            return { success: false, error: userInsertError.message || 'Failed to create user record' };
+        }
+
+        // DEBUG: Log successful delegate creation to confirm the user record was created
+        // Verify assignment_id and other fields are set correctly in the database
+        console.log('Delegate created successfully:', insertedUser);
+        
+        // Small delay to ensure user is fully created before sending email
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Get the site URL - use production domain for password reset emails
+        // Use environment variable if set, otherwise use production domain
+        let redirectUrl: string;
+        if (typeof window !== 'undefined') {
+            // Check if we're in development (localhost) or production
+            const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            if (isDevelopment && process.env.NEXT_PUBLIC_SITE_URL) {
+                redirectUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/reset-password`;
+            } else {
+                // Use production domain
+                redirectUrl = 'https://aldous.bmun.org/reset-password';
+            }
+        } else {
+            redirectUrl = process.env.NEXT_PUBLIC_SITE_URL 
+                ? `${process.env.NEXT_PUBLIC_SITE_URL}/reset-password`
+                : 'https://aldous.bmun.org/reset-password';
+        }
+        
+        // DEBUG: Log email sending attempt to track password reset email delivery
+        // Shows the redirect URL being used (important for Supabase redirect URL whitelist)
+        console.log('Sending password reset email to:', email, 'with redirect:', redirectUrl);
+        
+        // Send password reset email
+        // Note: For newly created users, we need to use resetPasswordForEmail
+        // The redirect URL must be in the allowed list in Supabase config
+        const { data: resetData, error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: redirectUrl,
+        });
+
+        if (resetError) {
+            // DEBUG: Log email errors with full details to diagnose email delivery issues
+            // Check if redirect URL is whitelisted, email service is configured, etc.
+            console.error('Error sending reset email:', resetError);
+            console.error('Reset error details:', {
+                message: resetError.message,
+                status: resetError.status,
+                email: email,
+                redirectUrl: redirectUrl
+            });
+            // Still return success as user was created, but log the email error
+            // In local dev, check Inbucket at http://localhost:54324 for emails
+            return { success: true, error: `User created but failed to send reset email: ${resetError.message}. Check Inbucket at http://localhost:54324 for local emails.` };
+        }
+
+        // DEBUG: Confirm password reset email was sent successfully
+        console.log('Password reset email sent successfully:', resetData);
+        
+        // Add the new delegate's email to the assignment's delegate_ids array (which stores emails)
+        const addDelegateToAssignmentResult = await addDelegateToAssignment(assignment_id, email);
+        if (!addDelegateToAssignmentResult.success) {
+            console.error('Failed to add delegate to assignment:', addDelegateToAssignmentResult.error);
+            // Still return success as user was created, but log the error
+            return { success: true, error: `User created but failed to update assignment: ${addDelegateToAssignmentResult.error}` };
+        }
+        
+        // Small delay to ensure the database update is fully committed
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        console.log(`Successfully created delegate and added to assignment ${assignment_id}`);
+        return { success: true };
+    } catch (error: any) {
+        console.error('Unexpected error in signUpDelegate:', error);
+        return { success: false, error: error?.message || 'An unexpected error occurred' };
     }
 }
 
@@ -458,6 +555,13 @@ export interface AssignmentProps {
     country_name: string,
     registration_id: number,
     rejected: boolean,
+    delegate_ids?: string[] // Array of delegate emails assigned to this assignment
+}
+
+export interface DelegateAssignmentInfo {
+    id: number;
+    committee_name: string;
+    country_name: string;
 }
 
 export async function createAssignment(assignmentValues: AssignmentProps) {
@@ -470,6 +574,27 @@ export async function createAssignment(assignmentValues: AssignmentProps) {
     }
 
     return true;
+}
+
+export async function getAssignmentForCurrentDelegate(): Promise<DelegateAssignmentInfo | null> {
+    const user = await getSupabaseUser();
+
+    if (!user || !user.assignment_id) {
+        return null;
+    }
+
+    const { data, error } = await supabase
+        .from('Assignment')
+        .select('id, committee_name, country_name')
+        .eq('id', user.assignment_id)
+        .maybeSingle();
+
+    if (error || !data) {
+        console.error('Error fetching assignment for delegate:', error);
+        return null;
+    }
+
+    return data as DelegateAssignmentInfo;
 }
 
 export async function getUsersFromAssignment(assignmentId: number) {
@@ -488,10 +613,13 @@ export async function getUsersFromAssignment(assignmentId: number) {
 export async function getDelegatesAsAdvisor() {
     const user = await getSupabaseUser();
 
-    if (user.user_type != 'advisor') {
+    if (!user || user.user_type != 'advisor') {
         console.error('Not an advisor, no delegates to fetch.');
         return [];
     }
+
+    // DEBUG: Log the query parameters to verify we're filtering correctly
+    console.log(`Fetching delegates for advisor - school_id: ${user.school_id}`);
 
     const {data, error} = await supabase.from('Users')
         .select('*')
@@ -499,11 +627,46 @@ export async function getDelegatesAsAdvisor() {
         .eq('school_id', user.school_id);
     
     if (error) {
-        console.error();
+        // DEBUG: Log database query errors to diagnose fetch issues
+        console.error('Error fetching delegates:', error);
         return [];
     }
 
-    return data;
+    // DEBUG: Log the raw database results to see what assignment_id values exist
+    console.log(`Fetched ${data?.length || 0} delegates from database`);
+    if (data && data.length > 0) {
+        console.log('Database query results (raw assignment_id values):', 
+            data.map(d => ({
+                name: `${d.first_name} ${d.last_name}`,
+                assignment_id: d.assignment_id,
+                assignment_id_type: typeof d.assignment_id
+            }))
+        );
+    }
+
+    return data || [];
+}
+
+export async function getDelegatesByIds(userIds: string[]): Promise<DelegateProps[]> {
+    if (!userIds || userIds.length === 0) {
+        console.log('getDelegatesByIds: No userIds provided');
+        return [];
+    }
+
+    console.log('getDelegatesByIds: Fetching delegates with IDs:', userIds);
+    
+    const {data, error} = await supabase.from('Users')
+        .select('*')
+        .in('id', userIds)
+        .eq('user_type', 'delegate');
+    
+    if (error) {
+        console.error('Error fetching delegates by IDs:', error);
+        return [];
+    }
+
+    console.log('getDelegatesByIds: Retrieved data:', data);
+    return (data || []) as DelegateProps[];
 }
 
 export interface AssignmentUploadProps {
@@ -605,6 +768,17 @@ export async function loadAssignments() {
         return null;
     }
 
+    // DEBUG: Log assignments with delegate_ids to verify they're being loaded
+    if (data && data.length > 0) {
+        console.log('Loaded assignments with delegate_ids:', data.map(a => ({
+            id: a.id,
+            committee: a.committee_name,
+            country: a.country_name,
+            delegate_ids: a.delegate_ids || [],
+            delegate_count: (a.delegate_ids?.length || 0)
+        })));
+    }
+
     return data;
 }
 
@@ -618,6 +792,54 @@ export async function updateAssignment(newAssignment: AssignmentProps) {
     }
 
     return true;
+}
+
+export async function addDelegateToAssignment(assignmentId: number, delegateEmail: string): Promise<{ success: boolean; error?: string }> {
+    try {
+        // Get the current assignment to retrieve existing delegate_ids (emails)
+        const { data: assignment, error: fetchError } = await supabase
+            .from("Assignment")
+            .select("delegate_ids")
+            .eq("id", assignmentId)
+            .single();
+
+        if (fetchError || !assignment) {
+            console.error("Error fetching assignment:", fetchError);
+            return { success: false, error: fetchError?.message || "Assignment not found" };
+        }
+
+        // Get existing delegate_ids array (emails) or initialize as empty array
+        const currentDelegateEmails: string[] = assignment.delegate_ids || [];
+
+        // Check if delegate email is already in the list (avoid duplicates)
+        if (currentDelegateEmails.includes(delegateEmail)) {
+            console.log("Delegate email already in assignment list");
+            return { success: true };
+        }
+
+        // Add the new delegate email to the array
+        const updatedDelegateEmails = [...currentDelegateEmails, delegateEmail];
+
+        // Update the assignment with the new delegate_ids array (emails)
+        const { error: updateError, data: updatedAssignment } = await supabase
+            .from("Assignment")
+            .update({ delegate_ids: updatedDelegateEmails })
+            .eq("id", assignmentId)
+            .select()
+            .single();
+
+        if (updateError) {
+            console.error("Error updating assignment delegate_ids:", updateError);
+            return { success: false, error: updateError.message || "Failed to update assignment" };
+        }
+
+        console.log(`Added delegate email ${delegateEmail} to assignment ${assignmentId}`);
+        console.log(`Updated assignment delegate_ids (emails):`, updatedAssignment?.delegate_ids);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Unexpected error in addDelegateToAssignment:", error);
+        return { success: false, error: error?.message || "An unexpected error occurred" };
+    }
 }
 
 export async function getAmountRegistered() {

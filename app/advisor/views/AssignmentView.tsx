@@ -1,6 +1,6 @@
 'use client';
 
-import { AssignmentProps, DelegateProps, getDelegatesAsAdvisor, loadAssignments, updateAssignment } from "@/app/utils/supabaseHelpers";
+import { AssignmentProps, loadAssignments, updateAssignment } from "@/app/utils/supabaseHelpers";
 import { useEffect, useState } from "react";
 import DelegateSubmission from "../modals/DelegateSubmission";
 import Image from 'next/image';
@@ -10,28 +10,76 @@ import { SINGLE_COMMITTEE } from "@/app/utils/generalHelper";
 
 function AssignmentView() {
     const [assignments, setAssignments] = useState<AssignmentProps[]>([]);
-    const [delegates, setDelegates] = useState<DelegateProps[]>([]);
     const [assignmentsUploaded, setAssignmentsUploaded] = useState(false);
 
     const [submittingDelegates, setSubmittingDelegates] = useState(false);
 
     const [assignmentId, setAssignmentId] = useState(0);
-    const [assignmentDelegates, setAssignmentDelegates] = useState<DelegateProps[]>([]);
+    const [delegateIds, setDelegateIds] = useState<string[]>([]);
     const [specialized, setSpecialized] = useState(false);
     const [committeeName, setCommitteeName] = useState("");
     const [countryName, setCountryName] = useState("");
 
     useEffect(() => {(async () => {
         const newAssignments = await loadAssignments();
-        const newDelegates = await getDelegatesAsAdvisor();
+        
+        // DEBUG: Log initial assignments load to verify assignments are being fetched
+        console.log('Initial assignments loaded:', newAssignments);
+        
+        // DEBUG: Log delegate_ids for each assignment
+        if (newAssignments && newAssignments.length > 0) {
+            console.log('Assignments with delegate_ids breakdown:', 
+                newAssignments.map(a => ({
+                    id: a.id,
+                    committee: a.committee_name,
+                    country: a.country_name,
+                    delegate_ids: a.delegate_ids || [],
+                    delegate_count: (a.delegate_ids?.length || 0)
+                }))
+            );
+        }
+        
         if (newAssignments != null && newAssignments.length > 0) {
-            setAssignments(newAssignments);
+            // Sort assignments: not fully assigned first, then fully assigned, then rejected
+            const sortedAssignments = [...newAssignments].sort((a, b) => {
+                // Helper function to check if assignment is fully assigned
+                const isFullyAssigned = (assignment: AssignmentProps) => {
+                    const maxDelegates = SINGLE_COMMITTEE.includes(assignment.committee_name) ? 1 : 2;
+                    const currentCount = assignment.delegate_ids?.length || 0;
+                    return currentCount >= maxDelegates;
+                };
+
+                // First, separate rejected from non-rejected (rejected goes to bottom)
+                if (a.rejected && !b.rejected) return 1; // a goes to bottom
+                if (!a.rejected && b.rejected) return -1; // b goes to bottom
+                
+                // If both are rejected or both are not rejected
+                if (a.rejected && b.rejected) {
+                    // Both rejected - sort alphabetically
+                    return a.committee_name.localeCompare(b.committee_name);
+                }
+                
+                // Both not rejected - check if fully assigned
+                const aFullyAssigned = isFullyAssigned(a);
+                const bFullyAssigned = isFullyAssigned(b);
+                
+                // Separate fully assigned from not fully assigned
+                if (aFullyAssigned && !bFullyAssigned) return 1; // fully assigned goes after not fully assigned
+                if (!aFullyAssigned && bFullyAssigned) return -1; // not fully assigned goes before fully assigned
+                
+                // Both in same category (both fully assigned or both not fully assigned)
+                const aCount = a.delegate_ids?.length || 0;
+                const bCount = b.delegate_ids?.length || 0;
+                if (aCount !== bCount) {
+                    return aCount - bCount; // Ascending order by count
+                }
+                // If same count, sort alphabetically by committee_name as tiebreaker
+                return a.committee_name.localeCompare(b.committee_name);
+            });
+            setAssignments(sortedAssignments);
             setAssignmentsUploaded(true);
         } else {
             setAssignmentsUploaded(false);
-        }
-        if (newDelegates != null) {
-            setDelegates(newDelegates);
         }
     })()}, []);
 
@@ -41,6 +89,66 @@ function AssignmentView() {
         );
     }
 
+    const refreshAssignments = async () => {
+        // Small delay to ensure database writes are committed
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Reload assignments to get updated delegate_ids arrays
+        const newAssignments = await loadAssignments();
+        if (newAssignments != null && newAssignments.length > 0) {
+            // Sort assignments: not fully assigned first, then fully assigned, then rejected
+            const sortedAssignments = [...newAssignments].sort((a, b) => {
+                // Helper function to check if assignment is fully assigned
+                const isFullyAssigned = (assignment: AssignmentProps) => {
+                    const maxDelegates = SINGLE_COMMITTEE.includes(assignment.committee_name) ? 1 : 2;
+                    const currentCount = assignment.delegate_ids?.length || 0;
+                    return currentCount >= maxDelegates;
+                };
+
+                // First, separate rejected from non-rejected (rejected goes to bottom)
+                if (a.rejected && !b.rejected) return 1; // a goes to bottom
+                if (!a.rejected && b.rejected) return -1; // b goes to bottom
+                
+                // If both are rejected or both are not rejected
+                if (a.rejected && b.rejected) {
+                    // Both rejected - sort alphabetically
+                    return a.committee_name.localeCompare(b.committee_name);
+                }
+                
+                // Both not rejected - check if fully assigned
+                const aFullyAssigned = isFullyAssigned(a);
+                const bFullyAssigned = isFullyAssigned(b);
+                
+                // Separate fully assigned from not fully assigned
+                if (aFullyAssigned && !bFullyAssigned) return 1; // fully assigned goes after not fully assigned
+                if (!aFullyAssigned && bFullyAssigned) return -1; // not fully assigned goes before fully assigned
+                
+                // Both in same category (both fully assigned or both not fully assigned)
+                const aCount = a.delegate_ids?.length || 0;
+                const bCount = b.delegate_ids?.length || 0;
+                if (aCount !== bCount) {
+                    return aCount - bCount; // Ascending order by count
+                }
+                // If same count, sort alphabetically by committee_name as tiebreaker
+                return a.committee_name.localeCompare(b.committee_name);
+            });
+            setAssignments(sortedAssignments);
+            // If modal is open, update the delegate_ids array
+            if (assignmentId) {
+                const currentAssignment = sortedAssignments.find(a => a.id === assignmentId);
+                console.log(`Refreshing delegate IDs for assignmentId ${assignmentId}:`, currentAssignment);
+                if (currentAssignment) {
+                    const updatedDelegateIds = currentAssignment.delegate_ids || [];
+                    console.log(`Found ${updatedDelegateIds.length} delegate IDs in assignment:`, updatedDelegateIds);
+                    setDelegateIds(updatedDelegateIds);
+                } else {
+                    console.log(`Assignment ${assignmentId} not found in sorted assignments`);
+                    setDelegateIds([]);
+                }
+            }
+        }
+    }
+
     return (
         <div className="h-full flex flex-col justify-start p-4">
             <DelegateSubmission 
@@ -48,9 +156,10 @@ function AssignmentView() {
                 committeeName={committeeName} 
                 specialized={specialized} 
                 assignmentId={assignmentId}
-                assignmentDelegates={assignmentDelegates}
+                delegateIds={delegateIds}
                 submittingDelegates={submittingDelegates} 
-                setSubmittingDelegates={setSubmittingDelegates} />
+                setSubmittingDelegates={setSubmittingDelegates}
+                onDelegateCreated={refreshAssignments} />
             <div className="flex flex-col gap-2 mb-4 h-full">
                 <div className="flex flex-row gap-6 mr-2 justify-between items-end">
                     <div className="text-2xl">
@@ -58,8 +167,8 @@ function AssignmentView() {
                     </div>
                 </div>
                 <div className="flex flex-col gap-4">
-                    <CountriesPanel />
-                    <CommitteesPanel />
+                    {/*<CountriesPanel />
+                    <CommitteesPanel />*/}
                     {!assignmentsUploaded ?
                         <div className="flex flex-col bg-black min-h-[750px] justify-center items-center text-3xl text-center p-4 gap-4 border-2 rounded-xl text-primary border-primary h-full">
                             <Image src="/BMUN Circle Logo Blue.png" alt="BMUN Logo" width={200} height={200}/>
@@ -73,6 +182,7 @@ function AssignmentView() {
                                     <th>Committee</th>
                                     <th>Country</th>
                                     <th>Delegate Assigned</th>
+                                    <th>Assigned Delegates</th>
                                     <th>Position Paper Status</th>
                                     <th>Reject Assignment</th>
                                 </tr>
@@ -87,22 +197,60 @@ function AssignmentView() {
                                             {assignment.country_name}
                                         </td>
                                         <td>
-                                            <button 
-                                                className="btn btn-primary btn-lg" 
-                                                disabled={assignment.rejected || delegates.filter(delegate => delegate.assignment_id === assignment.id).length == (SINGLE_COMMITTEE.includes(assignment.committee_name) ? 1 : 2)}
-                                                onClick={() => {
-                                                    if (assignment.id) {
-                                                        setAssignmentId(assignment.id);
-                                                        setAssignmentDelegates(delegates.filter(delegate => delegate.assignment_id === assignment.id));
-                                                        setSpecialized(false);
-                                                        setCommitteeName(assignment.committee_name);
-                                                        setCountryName(assignment.country_name);
-                                                        setSubmittingDelegates(true);
-                                                    }
-                                                }}
-                                            >
-                                                Assign ({delegates.filter(delegate => delegate.assignment_id === assignment.id).length}/{SINGLE_COMMITTEE.includes(assignment.committee_name) ? "1" : "2"})
-                                            </button>
+                                            {(() => {
+                                                const delegateEmails = assignment.delegate_ids || [];
+                                                const hasDelegates = delegateEmails.length > 0;
+                                                const tooltipContent = hasDelegates 
+                                                    ? delegateEmails.join('\n')
+                                                    : '';
+                                                
+                                                const buttonElement = (
+                                                    <button 
+                                                        className="btn btn-primary btn-lg" 
+                                                        disabled={assignment.rejected || (assignment.delegate_ids?.length || 0) >= (SINGLE_COMMITTEE.includes(assignment.committee_name) ? 1 : 2)}
+                                                        onClick={async () => {
+                                                            if (assignment.id) {
+                                                                setAssignmentId(assignment.id);
+                                                                // Pass delegate_ids array (emails) directly
+                                                                setDelegateIds(assignment.delegate_ids || []);
+                                                                setSpecialized(false);
+                                                                setCommitteeName(assignment.committee_name);
+                                                                setCountryName(assignment.country_name);
+                                                                setSubmittingDelegates(true);
+                                                            }
+                                                        }}
+                                                    >
+                                                        Assign ({(assignment.delegate_ids?.length || 0)}/{SINGLE_COMMITTEE.includes(assignment.committee_name) ? "1" : "2"})
+                                                    </button>
+                                                );
+
+                                                if (hasDelegates) {
+                                                    return (
+                                                        <div className="tooltip tooltip-top" data-tip={tooltipContent}>
+                                                            {buttonElement}
+                                                        </div>
+                                                    );
+                                                }
+
+                                                return buttonElement;
+                                            })()}
+                                        </td>
+                                        <td>
+                                            {(() => {
+                                                const delegateEmails = assignment.delegate_ids || [];
+                                                if (delegateEmails.length === 0) {
+                                                    return <span className="text-gray-500">—</span>;
+                                                }
+                                                return (
+                                                    <div className="flex flex-col gap-1 items-center">
+                                                        {delegateEmails.map((email, idx) => (
+                                                            <div key={idx} className="text-sm">
+                                                                {email}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                );
+                                            })()}
                                         </td>
                                         <td className="text-secondary">
                                             No Submission
@@ -117,11 +265,47 @@ function AssignmentView() {
                                                     className="btn btn-error btn-lg text-white"
                                                     onClick={async () => {
                                                         await rejectAssignment(assignment);
-                                                        setAssignments(prev =>
-                                                            prev.map((a, i) =>
+                                                        setAssignments(prev => {
+                                                            // Update the assignment and re-sort
+                                                            const updated = prev.map((a, i) =>
                                                                 i === index ? { ...a, rejected: true } : a
-                                                            )
-                                                        );
+                                                            );
+                                                            return updated.sort((a, b) => {
+                                                                // Helper function to check if assignment is fully assigned
+                                                                const isFullyAssigned = (assignment: AssignmentProps) => {
+                                                                    const maxDelegates = SINGLE_COMMITTEE.includes(assignment.committee_name) ? 1 : 2;
+                                                                    const currentCount = assignment.delegate_ids?.length || 0;
+                                                                    return currentCount >= maxDelegates;
+                                                                };
+
+                                                                // First, separate rejected from non-rejected (rejected goes to bottom)
+                                                                if (a.rejected && !b.rejected) return 1; // a goes to bottom
+                                                                if (!a.rejected && b.rejected) return -1; // b goes to bottom
+                                                                
+                                                                // If both are rejected or both are not rejected
+                                                                if (a.rejected && b.rejected) {
+                                                                    // Both rejected - sort alphabetically
+                                                                    return a.committee_name.localeCompare(b.committee_name);
+                                                                }
+                                                                
+                                                                // Both not rejected - check if fully assigned
+                                                                const aFullyAssigned = isFullyAssigned(a);
+                                                                const bFullyAssigned = isFullyAssigned(b);
+                                                                
+                                                                // Separate fully assigned from not fully assigned
+                                                                if (aFullyAssigned && !bFullyAssigned) return 1; // fully assigned goes after not fully assigned
+                                                                if (!aFullyAssigned && bFullyAssigned) return -1; // not fully assigned goes before fully assigned
+                                                                
+                                                                // Both in same category (both fully assigned or both not fully assigned)
+                                                                const aCount = a.delegate_ids?.length || 0;
+                                                                const bCount = b.delegate_ids?.length || 0;
+                                                                if (aCount !== bCount) {
+                                                                    return aCount - bCount; // Ascending order by count
+                                                                }
+                                                                // If same count, sort alphabetically by committee_name as tiebreaker
+                                                                return a.committee_name.localeCompare(b.committee_name);
+                                                            });
+                                                        });
                                                     }}
                                                 >
                                                     Reject
