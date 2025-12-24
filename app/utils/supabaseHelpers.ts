@@ -912,6 +912,41 @@ export async function resetPassword(password: string) {
     return true;
 }
 
+export async function sendPasswordResetEmail(email: string): Promise<{ success: boolean; error?: string }> {
+    try {
+        // Get the site URL - use production domain for password reset emails
+        let redirectUrl: string;
+        if (typeof window !== 'undefined') {
+            // Check if we're in development (localhost) or production
+            const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            if (isDevelopment && process.env.NEXT_PUBLIC_SITE_URL) {
+                redirectUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/reset-password`;
+            } else {
+                // Use production domain
+                redirectUrl = 'https://aldous.bmun.org/reset-password';
+            }
+        } else {
+            redirectUrl = process.env.NEXT_PUBLIC_SITE_URL 
+                ? `${process.env.NEXT_PUBLIC_SITE_URL}/reset-password`
+                : 'https://aldous.bmun.org/reset-password';
+        }
+
+        const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: redirectUrl,
+        });
+
+        if (error) {
+            console.error('Error sending reset email:', error);
+            return { success: false, error: error.message };
+        }
+
+        return { success: true };
+    } catch (error: any) {
+        console.error('Unexpected error in sendPasswordResetEmail:', error);
+        return { success: false, error: error?.message || 'An unexpected error occurred' };
+    }
+}
+
 export interface rubric {
     topic_1_background: number,
     topic_1_solutions: number,
