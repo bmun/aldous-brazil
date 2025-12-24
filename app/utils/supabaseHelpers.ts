@@ -931,7 +931,7 @@ export async function sendPasswordResetEmail(email: string): Promise<{ success: 
                 : 'https://aldous.bmun.org/reset-password';
         }
 
-        const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+        const { data: _, error } = await supabase.auth.resetPasswordForEmail(email, {
             redirectTo: redirectUrl,
         });
 
