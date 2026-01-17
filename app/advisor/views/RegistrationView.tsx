@@ -7,6 +7,7 @@ import TimelinePanel from "../panels/TimelinePanel";
 import FAQPanel from "../panels/FAQPanel";
 import OpeningSkeleton from "../skeletons/OpeningSkeleton";
 import { isWaitlistOpen } from "@/app/utils/supabaseHelpers";
+import ChangePanel from "../panels/ChangePanel";
 
 interface RegistrationViewProps {
     setPageNum: Function
@@ -44,7 +45,8 @@ function RegistrationView({setPageNum}: RegistrationViewProps) {
                     <SchoolForm setSchoolLoading={setSchoolLoading} />
                     <FAQPanel />
                 </div>
-                <div className={`${regLoading ? 'hidden' : ''} flex flex-col justify-start items-start h-full w-full pb-24`}>
+                <div className={`${regLoading ? 'hidden' : ''} flex flex-col gap-10 justify-start items-start h-full w-full pb-24`}>
+                    <ChangePanel />
                     <TimelinePanel />
                 </div>
             </div>
