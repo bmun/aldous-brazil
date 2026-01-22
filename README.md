@@ -2,7 +2,7 @@
 This is Aldous, BMUN's registration platform and the successor to our older model **Huxley**. We are running a React / Next.Js frontend, a Supabase backend, and are being hosted by Vercel.
 
 ## SET UP 
-Here's how to get it set up locally:
+Here's how to get it set up locally: 
 1. Clone the repository to a local directory:
 ```
 git clone https://github.com/bmun/aldous.git
