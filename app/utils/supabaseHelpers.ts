@@ -364,6 +364,11 @@ export async function getCurrentConference() {
 
 export const currentConference = await getCurrentConference();
 
+export interface DelegateInfo {
+  fullName: string;
+  email: string;
+}
+
 export interface RegistrationProps {
     id?: number,
     num_beginner_delegates: number,
@@ -375,6 +380,7 @@ export interface RegistrationProps {
     registration_fee_paid: boolean,
     is_waitlisted: boolean,
     committee_preferences?: string[]
+    delegate_info?: DelegateInfo[];
 }
 
 export async function getRegistration() {
