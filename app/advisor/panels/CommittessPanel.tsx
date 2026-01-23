@@ -12,7 +12,7 @@ function CommitteesPanel() {
     const [saveLoading, setSaveLoading] = useState(false);
     const [committeePreferences, setCommitteePreferences] = useState<string[]>([]);
 
-    const committeeNumbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    const committeeNumbers = [1, 2, 3, 4, 5];
 
     // Load school data and initialize committee preferences
     useEffect(() => {

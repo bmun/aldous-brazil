@@ -14,7 +14,7 @@ function SchoolForm({school, setSchool, submissionError}: SchoolFormProps) {
                 <h5 className="text-5xl">
                     School Information *
                 </h5>
-                <label className="label text-lg">
+                {/*<label className="label text-lg">
                     <input 
                         type="checkbox" 
                         checked={school.international} 
@@ -23,7 +23,7 @@ function SchoolForm({school, setSchool, submissionError}: SchoolFormProps) {
                             {...school, international:!school.international}
                         )} />
                     International School
-                </label>
+                </label>*/}
             </div>
             <div className="grid grid-cols-2 gap-2">
                 <div className="flex flex-col">
@@ -82,19 +82,19 @@ function SchoolForm({school, setSchool, submissionError}: SchoolFormProps) {
                 </div>
                 <div className="flex flex-col">
                     <label className="label text-lg">
-                        {school.international ? "Province" : "State"}
+                        {school.international ? "State" : "State"}
                     </label>
                     <input 
                         type="text" 
                         className={`input input-lg w-full ${submissionError && school.state.length == 0 ? "input-error" : ""}`}
-                        placeholder={school.international ? "Province" : "State"}
+                        placeholder={school.international ? "State" : "State"}
                         value={school.state}
                         onChange={(e) => setSchool(
                             {...school, state:e.target.value}
                         )} />
                 </div>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
                 <div className="flex flex-col">
                     <label className="label text-lg">
                         {school.international ? "Postal Code" : "Zip Code"}
@@ -124,7 +124,7 @@ function SchoolForm({school, setSchool, submissionError}: SchoolFormProps) {
                         <option>Individual</option>
                     </select>
                 </div>
-                <div className="flex flex-col w-full">
+                {/*<div className="flex flex-col w-full">
                     <label className="label text-lg">
                         Number of Times Attended
                     </label>
@@ -136,7 +136,7 @@ function SchoolForm({school, setSchool, submissionError}: SchoolFormProps) {
                         onChange={(e) => setSchool(
                             {...school, times_attended:parseInt(e.target.value.replace(/\D/g, '')) || 0}
                         )} />
-                </div>
+                </div>*/}
             </div>
             <div className="flex flex-row gap-2 items-end justify-between">
                 <h5 className="text-5xl">

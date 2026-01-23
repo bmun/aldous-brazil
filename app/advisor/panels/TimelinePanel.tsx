@@ -37,7 +37,7 @@ function TimelinePanel() {
     <div className="bg-black w-full border-2 border-primary rounded-2xl p-4 overflow-scroll">
         <h6 className="text-5xl text-center p-4 text-white">
             {(() => {
-                const startDateStr = currentConference?.start_date;
+                const startDateStr = currentConference?.conference_begins;
                 if (!isValidDate(startDateStr)) return "Start date unknown";
                 
                 const startDate = parseDateOnly(startDateStr);

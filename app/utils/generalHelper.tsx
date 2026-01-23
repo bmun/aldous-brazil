@@ -116,26 +116,11 @@ export const defaultConferenceData = {
 
 // TODO: Change this, hardcoded for speed
 export const COMMITTEE_LIST: string[] = [
-  "DISEC",
-  "SOCHUM",
-  "SIXTH",
-  "SPECPOL",
-  "IAEA",
-  "ITU",
-  "CSTD",
-  "UNCTAD",
-  "UNEP",
-  "UNHRC",
-  "UNESCO",
-  "ILO",
-  "Press Corps",
-  "UNSC",
-  "US Senate",
-  "World Cities Summit",
+  "ECOFIN",
   "WHO",
-  "Brexit",
-  "Fall of Tokugawa",
-  "Space Race"
+  "FAO",
+  "UNOOSA",
+  "DISEC"
 ];
 
 export const UN_COUNTRIES: string[] = [

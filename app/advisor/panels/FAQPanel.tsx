@@ -7,16 +7,12 @@ const faqs = [
     },
     {
         question: "How do the fees work?",
-        answer: "We charge a flat, nonrefundable 80 USD school fee for each delegation, and each delegate requires a registration fee of 95 USD."
+        answer: "During the initial round, each delegate is required to pay a fee of 90 USD. During round 2, each delegate is required to pay a fee of 105 USD."
     },
     {
         question: "What do I do if I want to add or drop delegates?",
-        answer: "To add or drop delegates from your registration, contact us at info@bmun.org and tech@bmun.org. We will provide you with a response within 5 business days. Delegations are currently limited to 50 spots, but we will provide an opportunity to add more after R1."
+        answer: "To add or drop delegates from your registration, contact us at info@bmun.org and tech@bmun.org. We will provide you with a response within 5 business days. Delegations are currently limited to 50 spots, but we will provide an opportunity to add more after round 1."
     },
-    {
-        question: "Will there be a waitlist this year?",
-        answer: "If we hit our registration cap prior to the end of any registration period we will automatically transition to the waitlist. The waitlist is on a first-come-first-serve basis with a strict cap on how many each school can register. More info to follow."
-    }
 ]
 
 function FAQPanel() {

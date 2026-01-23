@@ -55,7 +55,7 @@ function SchoolForm({setSchoolLoading}: SchoolFormProps) {
             <div>
                 <div className="flex flex-row items-center justify-between gap-4">
                     <h5 className="text-3xl">School Information</h5>
-                    <label className="label gap-2">
+                    {/*<label className="label gap-2">
                         <input
                             type="checkbox"
                             checked={school.international}
@@ -68,7 +68,7 @@ function SchoolForm({setSchoolLoading}: SchoolFormProps) {
                             className="toggle toggle-primary"
                         />
                         International School
-                    </label>
+                    </label>*/}
                 </div>
                 <div className="flex flex-col">
                     <label className="label text-lg">School Name</label>
@@ -111,7 +111,7 @@ function SchoolForm({setSchoolLoading}: SchoolFormProps) {
                         />
                     </div>
                     <div className="flex flex-col">
-                        <label className="label text-lg">{school.international ? "Province" : "State"}</label>
+                        <label className="label text-lg">{school.international ? "State" : "State"}</label>
                         <input
                             type="text"
                             value={school.state}

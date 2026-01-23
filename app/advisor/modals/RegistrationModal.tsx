@@ -137,10 +137,11 @@ function RegistrationForm ({creatingRegistration, setCreatingRegistration, waitl
                         }}
                         />
 
-                        <label className="label text-xl mt-2">
+                        {/*<label className="label text-xl mt-2">
                             <input type="checkbox" checked={onlinePayment} className="toggle toggle-primary" onChange={(_) => setOnlinePayment(!onlinePayment)} />
                             Pay Online
-                        </label>
+                        </label>*/}
+                        
                         <button 
                             className="btn btn-primary mt-4 text-xl" 
                             onClick={async () => await handleSubmission()}
@@ -157,7 +158,7 @@ function RegistrationForm ({creatingRegistration, setCreatingRegistration, waitl
                             : <></>
                         }
                     </div>
-                    <div className="flex flex-col gap-2 w-lg overflow-scroll max-h-[432px]">
+                    <div className="flex flex-col gap-2 w-lg overflow-scroll max-h-[390px]">
                         <h3 className="text-5xl">
                             Delegate Information
                         </h3>

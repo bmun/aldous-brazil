@@ -53,7 +53,7 @@ function AssignmentView() {
             <div className="flex flex-col gap-2 mb-4 h-full">
                 <div className="flex flex-row gap-6 mr-2 justify-between items-end">
                     <div className="text-2xl">
-                        Round 1 Assignments are <div className="badge badge-primary badge-xl text-white">Released</div><br></br>
+                        Assignments are <div className="badge badge-error font-bold badge-xl text-white">not released</div><br></br>
                     </div>
                 </div>
                 <div className="flex flex-col gap-4">
