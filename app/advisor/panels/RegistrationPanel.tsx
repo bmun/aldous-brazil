@@ -113,7 +113,7 @@ function RegistrationPanel({setCreatingRegistration, setRegLoading, setPageNum, 
                     <p className="text-xl">
                         It looks like you have <b>not yet registered for BMUN Brazil. </b>
                         In order to do so, please click on the button below to fill out our registration form.
-                        If you need some guidance on the process please, reference our advisor guide.
+                        If you need some guidance on the process, please reference our advisor guide.
                         <br/> <br/>
                         When registering, ensure that your delegation numbers are accurate. 
                         In order to change any information after submitting the form, an advisor will have to email <span className="font-bold text-primary">info@bmun.org</span> and <span className="font-bold text-primary">tech@bmun.org</span>.
