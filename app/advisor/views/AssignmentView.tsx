@@ -72,7 +72,7 @@ function AssignmentView() {
                             to 1 assignment. Creating delegate accounts will be available
                             by <span className="font-bold text-primary">November, 17th</span>. Please direct any questions 
                             to <span className="font-bold text-primary">tech@bmun.org</span> 
-                            and <span className="font-bold text-primary">info@bmun.org</span>.
+                            and <span className="font-bold text-primary">brazilinfo@bmun.org</span>.
                         </p>
                         <table className="table table-zebra text-xl text-center">
                             <thead>

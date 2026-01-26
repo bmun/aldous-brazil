@@ -11,7 +11,7 @@ const faqs = [
     },
     {
         question: "What do I do if I want to add or drop delegates?",
-        answer: "To add or drop delegates from your registration, contact us at info@bmun.org and tech@bmun.org. We will provide you with a response within 5 business days. Delegations are currently limited to 50 spots, but we will provide an opportunity to add more after round 1."
+        answer: "To add or drop delegates from your registration, contact us at brazilinfo@bmun.org and tech@bmun.org. We will provide you with a response within 5 business days. Delegations are currently limited to 50 spots, but we will provide an opportunity to add more after round 1."
     },
 ]
 

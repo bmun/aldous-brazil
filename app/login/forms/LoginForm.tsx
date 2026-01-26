@@ -59,7 +59,7 @@ function LoginForm({setRegistering}: LoginProps) {
                     />
                 </div>
                 <label className="label">Email</label>
-                <input type="email" className={`input input-lg ${emailError ? 'input-error' : ''}`} placeholder="info@bmun.org" value={email} onChange={(event) => setEmail(event.target.value)} />
+                <input type="email" className={`input input-lg ${emailError ? 'input-error' : ''}`} placeholder="brazilinfo@bmun.org" value={email} onChange={(event) => setEmail(event.target.value)} />
 
                 <label className="label">Password</label>
                 <div>
