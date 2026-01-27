@@ -3,6 +3,7 @@
 import { AssignmentProps, loadAssignments, updateAssignment } from "@/app/utils/supabaseHelpers";
 import { useEffect, useState } from "react";
 import DelegateSubmission from "../modals/DelegateSubmission";
+import PositionPaperModal from "../modals/PositionPaperModal";
 import Image from 'next/image';
 import { SINGLE_COMMITTEE } from "@/app/utils/generalHelper";
 
@@ -17,6 +18,12 @@ function AssignmentView() {
     const [specialized, setSpecialized] = useState(false);
     const [committeeName, setCommitteeName] = useState("");
     const [countryName, setCountryName] = useState("");
+    
+    // Position paper modal state
+    const [paperModalOpen, setPaperModalOpen] = useState(false);
+    const [selectedPaperId, setSelectedPaperId] = useState<number | null>(null);
+    const [selectedCommitteeName, setSelectedCommitteeName] = useState("");
+    const [selectedCountryName, setSelectedCountryName] = useState("");
 
     useEffect(() => {(async () => {
         const newAssignments = await loadAssignments();
@@ -139,6 +146,13 @@ function AssignmentView() {
                 submittingDelegates={submittingDelegates} 
                 setSubmittingDelegates={setSubmittingDelegates}
                 onDelegateCreated={refreshAssignments} />
+            <PositionPaperModal
+                paperId={selectedPaperId}
+                committeeName={selectedCommitteeName}
+                countryName={selectedCountryName}
+                isOpen={paperModalOpen}
+                setIsOpen={setPaperModalOpen}
+            />
             <div className="flex flex-col gap-2 mb-4 h-full">
                 <div className="flex flex-row gap-6 mr-2 justify-between items-end">
                     <div className="text-2xl">
@@ -231,8 +245,22 @@ function AssignmentView() {
                                                 );
                                             })()}
                                         </td>
-                                        <td className="text-secondary">
-                                            No Submission
+                                        <td>
+                                            {assignment.paper_id ? (
+                                                <button
+                                                    className="btn btn-secondary btn-lg text-white"
+                                                    onClick={() => {
+                                                        setSelectedPaperId(assignment.paper_id!);
+                                                        setSelectedCommitteeName(assignment.committee_name);
+                                                        setSelectedCountryName(assignment.country_name);
+                                                        setPaperModalOpen(true);
+                                                    }}
+                                                >
+                                                    View Submission
+                                                </button>
+                                            ) : (
+                                                <span className="text-secondary">No Submission</span>
+                                            )}
                                         </td>
                                         <td>
                                             {assignment.rejected ? 

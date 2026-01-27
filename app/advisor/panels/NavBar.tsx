@@ -26,7 +26,7 @@ function NavBar({setPageNum}: NavBarProps) {
     }
 
     return (
-        <div className="fixed navbar z-20 bg-black border-b-2 border-primary text-primary shadow-lg">
+        <div className="fixed navbar z-20 bg-black border-b-2 border-primary text-primary shadow-lg mx-auto">
                 <div className="navbar-start">
                     <div className="dropdown">
                         <div tabIndex={0} role="button" className="btn btn-ghost lg:hidden">

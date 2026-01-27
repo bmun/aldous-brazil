@@ -556,6 +556,7 @@ export interface AssignmentProps {
     registration_id: number,
     rejected: boolean,
     delegate_ids?: string[] // Array of delegate emails assigned to this assignment
+    paper_id?: number | null // ID of the position paper associated with this assignment
 }
 
 export interface DelegateAssignmentInfo {
@@ -956,4 +957,299 @@ export interface rubric {
     topic_2_solutions: number,
     topic_2_questions: number,
     topic_2_discrection: number
+}
+
+export interface PositionPaper {
+    id?: number,
+    graded: boolean,
+    score_1: number,
+    score_2: number,
+    score_3: number,
+    score_4: number,
+    score_5: number,
+    score_t2_1: number,
+    score_t2_2: number,
+    score_t2_3: number,
+    score_t2_4: number,
+    score_t2_5: number,
+    submission_date: Date,
+    paper_url: string
+}
+
+const MAX_SIZE = 10 * 1024 * 1024
+
+const ALLOWED_TYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+]
+
+
+export async function uploadPositionPaper(file: File) {
+    // ─────────────────────────────────────────────
+    // 0. Validate file
+    // ─────────────────────────────────────────────
+    if (!file) {
+        throw new Error('No file provided')
+    }
+
+    if (file.size > MAX_SIZE) {
+        throw new Error('File must be under 10MB')
+    }
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+        throw new Error('Only PDF or Word documents are allowed')
+    }
+
+    const {
+        data: { user },
+        error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+        throw new Error('Not authenticated')
+    }
+
+    const { data: userRow, error: userRowError } =
+        await supabase
+        .from('Users')
+        .select('assignment_id')
+        .eq('id', user.id)
+        .single()
+
+    if (userRowError) throw userRowError
+    if (!userRow?.assignment_id) {
+        throw new Error('User has no assignment')
+    }
+
+    const assignmentId = userRow.assignment_id
+
+    const { data: assignment, error: assignmentError } =
+        await supabase
+        .from('Assignment')
+        .select('id, paper_id')
+        .eq('id', assignmentId)
+        .single()
+
+    if (assignmentError) throw assignmentError
+
+    const paperId: number | null = assignment.paper_id
+
+    // Sanitize filename to prevent path traversal and ensure it's safe
+    // Remove any path separators and keep only the filename
+    const sanitizedFileName = file.name.replace(/[\/\\]/g, '_').replace(/\.\./g, '_')
+    const filePath = `${assignmentId}/${sanitizedFileName}`
+
+    if (paperId) {
+        const { data: oldPaper, error: oldPaperError } =
+        await supabase
+            .from('PositionPaper')
+            .select('paper_url')
+            .eq('id', paperId)
+            .single()
+
+        if (oldPaperError) throw oldPaperError
+
+        if (oldPaper?.paper_url) {
+        await supabase.storage
+            .from('position-papers')
+            .remove([oldPaper.paper_url])
+        }
+    }
+
+    const { error: uploadError } =
+        await supabase.storage
+        .from('position-papers')
+        .upload(filePath, file, {
+            upsert: true,
+            contentType: file.type,
+        })
+
+    if (uploadError) throw uploadError
+
+    const submissionDate = new Date().toISOString()
+
+    if (!paperId) {
+        // CREATE
+        const { data: newPaper, error: insertError } =
+        await supabase
+            .from('PositionPaper')
+            .insert(
+            {
+                graded: false,
+                submission_date: submissionDate,
+                paper_url: filePath,
+                score_1: 0,
+                score_2: 0,
+                score_3: 0,
+                score_4: 0,
+                score_5: 0,
+                score_t2_1: 0,
+                score_t2_2: 0,
+                score_t2_3: 0,
+                score_t2_4: 0,
+                score_t2_5: 0,
+            }
+            )
+            .select('id')
+            .single()
+
+        if (insertError || !newPaper?.id) {
+            throw insertError
+            throw new Error('Failed to create PositionPaper')
+        }
+
+        // Attach paper to assignment
+        const { error: updateAssignmentError } =
+        await supabase
+            .from('Assignment')
+            .update({ paper_id: newPaper.id })
+            .eq('id', assignmentId)
+
+        if (updateAssignmentError) throw updateAssignmentError
+    } else {
+        // UPDATE
+        const { error: updateError } =
+        await supabase
+            .from('PositionPaper')
+            .update({
+            submission_date: submissionDate,
+            paper_url: filePath,
+            })
+            .eq('id', paperId)
+
+        if (updateError) throw updateError
+    }
+}
+
+export async function getPositionPaperForCurrentDelegate(): Promise<PositionPaper | null> {
+    const {
+        data: { user },
+        error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+        console.error('Not authenticated')
+        return null
+    }
+
+    const { data: userRow, error: userRowError } =
+        await supabase
+        .from('Users')
+        .select('assignment_id')
+        .eq('id', user.id)
+        .single()
+
+    if (userRowError || !userRow?.assignment_id) {
+        return null
+    }
+
+    const assignmentId = userRow.assignment_id
+
+    const { data: assignment, error: assignmentError } =
+        await supabase
+        .from('Assignment')
+        .select('paper_id')
+        .eq('id', assignmentId)
+        .single()
+
+    if (assignmentError || !assignment?.paper_id) {
+        return null
+    }
+
+    const { data: paper, error: paperError } =
+        await supabase
+        .from('PositionPaper')
+        .select('*')
+        .eq('id', assignment.paper_id)
+        .single()
+
+    if (paperError || !paper) {
+        return null
+    }
+
+    return paper as PositionPaper
+}
+
+export async function downloadPositionPaper(): Promise<void> {
+    const paper = await getPositionPaperForCurrentDelegate()
+
+    if (!paper || !paper.paper_url) {
+        throw new Error('No position paper found')
+    }
+
+    const { data, error } = await supabase.storage
+        .from('position-papers')
+        .download(paper.paper_url)
+
+    if (error) {
+        throw new Error(`Failed to download file: ${error.message}`)
+    }
+
+    if (!data) {
+        throw new Error('No file data received')
+    }
+
+    // Create a blob URL and trigger download
+    const url = window.URL.createObjectURL(data)
+    const link = document.createElement('a')
+    link.href = url
+    
+    // Extract filename from paper_url (e.g., "123/original_filename.pdf" -> "original_filename.pdf")
+    const fileName = paper.paper_url.split('/').pop() || 'position_paper.pdf'
+    link.download = fileName
+    
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+}
+
+export async function getPositionPaperByPaperId(paperId: number): Promise<PositionPaper | null> {
+    const { data: paper, error: paperError } =
+        await supabase
+        .from('PositionPaper')
+        .select('*')
+        .eq('id', paperId)
+        .single()
+
+    if (paperError || !paper) {
+        return null
+    }
+
+    return paper as PositionPaper
+}
+
+export async function downloadPositionPaperByPaperId(paperId: number): Promise<void> {
+    const paper = await getPositionPaperByPaperId(paperId)
+
+    if (!paper || !paper.paper_url) {
+        throw new Error('No position paper found')
+    }
+
+    const { data, error } = await supabase.storage
+        .from('position-papers')
+        .download(paper.paper_url)
+
+    if (error) {
+        throw new Error(`Failed to download file: ${error.message}`)
+    }
+
+    if (!data) {
+        throw new Error('No file data received')
+    }
+
+    // Create a blob URL and trigger download
+    const url = window.URL.createObjectURL(data)
+    const link = document.createElement('a')
+    link.href = url
+    
+    // Extract filename from paper_url (e.g., "123/original_filename.pdf" -> "original_filename.pdf")
+    const fileName = paper.paper_url.split('/').pop() || 'position_paper.pdf'
+    link.download = fileName
+    
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
 }
