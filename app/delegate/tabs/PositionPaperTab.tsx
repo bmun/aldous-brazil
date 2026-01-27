@@ -1,13 +1,12 @@
-import { DelegateAssignmentInfo, PositionPaper, uploadPositionPaper, getPositionPaperForCurrentDelegate, downloadPositionPaper } from "@/app/utils/supabaseHelpers";
-import { DelegateUser } from "../page";
+import { PositionPaper, uploadPositionPaper, getPositionPaperForCurrentDelegate, downloadPositionPaper } from "@/app/utils/supabaseHelpers";
 import { useEffect, useState } from "react";
 
-interface ProfileTabProps {
+/*interface ProfileTabProps {
     delegate: DelegateUser,
     assignment: DelegateAssignmentInfo
-}
+}*/
 
-function PositionPaperTab({delegate, assignment}: ProfileTabProps) {
+function PositionPaperTab() {
     const [file, setFile] = useState<File | null>(null)
     const [uploading, setUploading] = useState(false)
     const [error, setError] = useState<string | null>(null)

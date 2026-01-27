@@ -165,7 +165,7 @@ function DelegateView() {
                     ) : activeTab == "profile" ?
                         <ProfileTab assignment={assignment} delegate={delegate} />
                       :
-                        <PositionPaperTab assignment={assignment} delegate={delegate} />
+                        <PositionPaperTab />
                     }
                 </div>
             </main>

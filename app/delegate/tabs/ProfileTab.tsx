@@ -9,11 +9,9 @@ interface ProfileTabProps {
 
 function ProfileTab({delegate, assignment}: ProfileTabProps) {
     const [hasPaper, setHasPaper] = useState(false);
-    const [paperLoading, setPaperLoading] = useState(true);
 
     useEffect(() => {
         (async () => {
-            setPaperLoading(true);
             try {
                 const paper = await getPositionPaperForCurrentDelegate();
                 setHasPaper(paper !== null);
@@ -21,7 +19,6 @@ function ProfileTab({delegate, assignment}: ProfileTabProps) {
                 console.error('Error checking position paper:', e);
                 setHasPaper(false);
             }
-            setPaperLoading(false);
         })();
     }, []);
 
