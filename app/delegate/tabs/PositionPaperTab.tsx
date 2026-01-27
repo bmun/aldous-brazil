@@ -198,20 +198,6 @@ function PositionPaperTab() {
                                             {downloading ? 'Downloading…' : 'Download Original'}
                                         </button>
                                     </fieldset>
-                                    <fieldset>
-                                        <button 
-                                            className="btn btn-success btn-active mt-1"
-                                            disabled={!paper?.graded}>
-                                            Download Graded
-                                        </button>
-                                    </fieldset>
-                                    <fieldset>
-                                        <button
-                                            className="btn btn-success btn-active mt-1"
-                                            disabled={!paper?.graded}>
-                                            View Final Grade
-                                        </button>
-                                    </fieldset>
                                 </div>
                             }
                         </div>

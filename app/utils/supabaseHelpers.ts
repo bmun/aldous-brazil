@@ -363,12 +363,149 @@ export interface CommitteeProps {
     special: boolean,
 }
 
+export interface ChairInfo {
+    name: string;
+    color: string;
+    assignment_ids?: number[]; // Array of paper IDs assigned to this chair
+}
+
+export interface ChairCommitteeInfo {
+    id: number;
+    name: string;
+    full_name: string;
+    chair_info: ChairInfo[] | null;
+    special?: boolean;
+    rubric_id?: number | null;
+}
+
+export interface RubricItem {
+    name: string;
+    value: number;
+}
+
+export interface Rubric {
+    id?: number;
+    topic_one: RubricItem[];
+    topic_two: RubricItem[];
+    use_topic_2: boolean;
+}
+
 export async function createCommittee(committeeStruct: CommitteeProps) {
     const { error } = await supabase.from('Committee')
         .insert(committeeStruct);
 
     if (error) {
         console.error(error);
+        return false;
+    }
+
+    return true;
+}
+
+export async function getCommitteeForCurrentChair(): Promise<ChairCommitteeInfo | null> {
+    const user = await getSupabaseUser();
+
+    if (!user || user.user_type !== "chair" || !user.committee_id) {
+        return null;
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from("Committee")
+            .select("id, name, full_name, chair_info, special, rubric_id")
+            .eq("id", user.committee_id)
+            .maybeSingle();
+
+        if (error) {
+            console.error("Error fetching committee for chair:", error);
+            return null;
+        }
+
+        if (!data) {
+            // No row found - this is not an error, just no committee assigned
+            console.log("No committee found for chair with committee_id:", user.committee_id);
+            return null;
+        }
+
+        // If chair_info is missing or null in the row, normalize it to null in the return type
+        const row = data as any;
+        return {
+            id: row.id,
+            name: row.name,
+            full_name: row.full_name,
+            chair_info: Array.isArray(row.chair_info) ? row.chair_info : null,
+            special: row.special || false,
+            rubric_id: row.rubric_id || null,
+        } as ChairCommitteeInfo;
+    } catch (e) {
+        console.error("Unexpected error fetching committee for chair:", e);
+        return null;
+    }
+}
+
+export async function updateChairInfoForCurrentChair(chairs: ChairInfo[]): Promise<boolean> {
+    const user = await getSupabaseUser();
+
+    if (!user || user.user_type !== "chair" || !user.committee_id) {
+        return false;
+    }
+
+    const { error } = await supabase
+        .from("Committee")
+        .update({ chair_info: chairs })
+        .eq("id", user.committee_id);
+
+    if (error) {
+        console.error("Error updating chair_info for chair committee:", error);
+        return false;
+    }
+
+    return true;
+}
+
+export async function assignPaperToChair(paperId: number, chairIndex: number | null): Promise<boolean> {
+    const user = await getSupabaseUser();
+
+    if (!user || user.user_type !== "chair" || !user.committee_id) {
+        return false;
+    }
+
+    // Get current committee with chair_info
+    const { data: committee, error: fetchError } = await supabase
+        .from("Committee")
+        .select("chair_info")
+        .eq("id", user.committee_id)
+        .maybeSingle();
+
+    if (fetchError || !committee) {
+        console.error("Error fetching committee for paper assignment:", fetchError);
+        return false;
+    }
+
+    const chairs: ChairInfo[] = Array.isArray(committee.chair_info) ? committee.chair_info : [];
+
+    // Remove paperId from all chairs first
+    const updatedChairs = chairs.map(c => ({
+        ...c,
+        assignment_ids: (c.assignment_ids || []).filter(id => id !== paperId),
+    }));
+
+    // Add paperId to the selected chair (if not null)
+    if (chairIndex !== null && chairIndex >= 0 && chairIndex < updatedChairs.length) {
+        updatedChairs[chairIndex] = {
+            ...updatedChairs[chairIndex],
+            assignment_ids: [...(updatedChairs[chairIndex].assignment_ids || []), paperId],
+        };
+    }
+
+    // Update the committee
+    const { error: updateError } = await supabase
+        .from("Committee")
+        .update({ chair_info: updatedChairs })
+        .eq("id", user.committee_id);
+
+    if (updateError) {
+        console.error("Error updating chair assignment:", updateError);
         return false;
     }
 
@@ -596,6 +733,103 @@ export async function getAssignmentForCurrentDelegate(): Promise<DelegateAssignm
     }
 
     return data as DelegateAssignmentInfo;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Chair helpers
+// ─────────────────────────────────────────────────────────────
+
+// Lightweight delegate info for chair views (attendance, papers)
+export interface ChairDelegateInfo {
+    first_name: string | null;
+    last_name: string | null;
+    email: string;
+    assignment_id: number | null;
+}
+
+export async function getAssignmentsForCurrentChair(): Promise<AssignmentProps[]> {
+    const user = await getSupabaseUser();
+
+    if (!user || user.user_type !== 'chair' || !user.committee_id) {
+        return [];
+    }
+
+    const { data, error } = await supabase
+        .from('Assignment')
+        .select('*')
+        .eq('committee_id', user.committee_id);
+
+    if (error || !data) {
+        console.error('Error fetching assignments for chair:', error);
+        return [];
+    }
+
+    return data as AssignmentProps[];
+}
+
+export async function getDelegatesByEmails(emails: string[]): Promise<ChairDelegateInfo[]> {
+    if (!emails || emails.length === 0) {
+        return [];
+    }
+
+    const { data, error } = await supabase
+        .from('Users')
+        .select('first_name, last_name, email, assignment_id, user_type')
+        .in('email', emails);
+
+    if (error || !data) {
+        console.error('Error fetching delegates by emails:', error);
+        return [];
+    }
+
+    // Only keep delegates
+    const delegates = data.filter((u: any) => u.user_type === 'delegate');
+
+    return delegates.map((u: any) => ({
+        first_name: u.first_name ?? null,
+        last_name: u.last_name ?? null,
+        email: u.email,
+        assignment_id: u.assignment_id ?? null,
+    })) as ChairDelegateInfo[];
+}
+
+export async function getDelegatesForCurrentChairSchool(): Promise<DelegateProps[]> {
+    const user = await getSupabaseUser();
+
+    if (!user || user.user_type !== 'chair' || !user.school_id) {
+        return [];
+    }
+
+    const { data, error } = await supabase
+        .from('Users')
+        .select('*')
+        .eq('user_type', 'delegate')
+        .eq('school_id', user.school_id);
+
+    if (error || !data) {
+        console.error('Error fetching delegates for chair school:', error);
+        return [];
+    }
+
+    return data as DelegateProps[];
+}
+
+export async function getAssignmentsByIds(assignmentIds: number[]): Promise<AssignmentProps[]> {
+    if (!assignmentIds || assignmentIds.length === 0) {
+        return [];
+    }
+
+    const { data, error } = await supabase
+        .from('Assignment')
+        .select('*')
+        .in('id', assignmentIds);
+
+    if (error || !data) {
+        console.error('Error fetching assignments by IDs:', error);
+        return [];
+    }
+
+    return data as AssignmentProps[];
 }
 
 export async function getUsersFromAssignment(assignmentId: number) {
@@ -1205,6 +1439,29 @@ export async function downloadPositionPaper(): Promise<void> {
     window.URL.revokeObjectURL(url)
 }
 
+// Batch fetch position papers for chair views
+export interface PositionPaperWithId extends PositionPaper {
+    id: number;
+}
+
+export async function getPositionPapersByIds(paperIds: number[]): Promise<PositionPaperWithId[]> {
+    if (!paperIds || paperIds.length === 0) {
+        return [];
+    }
+
+    const { data, error } = await supabase
+        .from('PositionPaper')
+        .select('*')
+        .in('id', paperIds);
+
+    if (error || !data) {
+        console.error('Error fetching position papers by IDs:', error);
+        return [];
+    }
+
+    return data as PositionPaperWithId[];
+}
+
 export async function getPositionPaperByPaperId(paperId: number): Promise<PositionPaper | null> {
     const { data: paper, error: paperError } =
         await supabase
@@ -1252,4 +1509,211 @@ export async function downloadPositionPaperByPaperId(paperId: number): Promise<v
     link.click()
     document.body.removeChild(link)
     window.URL.revokeObjectURL(url)
+}
+
+export async function updatePositionPaperScores(
+    paperId: number,
+    scores: {
+        score_1: number;
+        score_2: number;
+        score_3: number;
+        score_4: number;
+        score_5: number;
+        score_t2_1: number;
+        score_t2_2: number;
+        score_t2_3: number;
+        score_t2_4: number;
+        score_t2_5: number;
+    }
+): Promise<boolean> {
+    try {
+        const { error } = await supabase
+            .from('PositionPaper')
+            .update({
+                ...scores,
+                graded: true,
+            })
+            .eq('id', paperId);
+
+        if (error) {
+            console.error('Error updating position paper scores:', error);
+            return false;
+        }
+
+        return true;
+    } catch (e) {
+        console.error('Error updating position paper scores:', e);
+        return false;
+    }
+}
+
+export async function uploadGradedPaper(paperId: number, assignmentId: number, file: File): Promise<boolean> {
+    try {
+        // Validate file
+        if (file.size > 10 * 1024 * 1024) {
+            throw new Error('File must be under 10MB');
+        }
+
+        if (!ALLOWED_TYPES.includes(file.type)) {
+            throw new Error('Only PDF or Word documents are allowed');
+        }
+
+        // Sanitize filename
+        const sanitizedFileName = file.name.replace(/[\/\\]/g, '_').replace(/\.\./g, '_');
+        const filePath = `${assignmentId}/graded/${sanitizedFileName}`;
+
+        // Upload to storage
+        const { error: uploadError } = await supabase.storage
+            .from('position-papers')
+            .upload(filePath, file, {
+                upsert: true,
+                contentType: file.type,
+            });
+
+        if (uploadError) {
+            console.error('Error uploading graded paper:', uploadError);
+            return false;
+        }
+
+        return true;
+    } catch (e) {
+        console.error('Error uploading graded paper:', e);
+        return false;
+    }
+}
+
+export async function downloadGradedPaper(paperId: number, assignmentId: number): Promise<void> {
+    try {
+        // List files in the graded folder for this assignment
+        const { data: files, error: listError } = await supabase.storage
+            .from('position-papers')
+            .list(`${assignmentId}/graded`, {
+                limit: 1,
+                sortBy: { column: 'created_at', order: 'desc' }
+            });
+
+        if (listError || !files || files.length === 0) {
+            throw new Error('No graded paper found');
+        }
+
+        const gradedFilePath = `${assignmentId}/graded/${files[0].name}`;
+
+        const { data, error } = await supabase.storage
+            .from('position-papers')
+            .download(gradedFilePath);
+
+        if (error) {
+            throw new Error(`Failed to download file: ${error.message}`);
+        }
+
+        if (!data) {
+            throw new Error('No file data received');
+        }
+
+        // Create a blob URL and trigger download
+        const url = window.URL.createObjectURL(data);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = files[0].name;
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+    } catch (e: any) {
+        throw new Error(e.message || 'Failed to download graded paper');
+    }
+}
+
+export async function getRubricById(rubricId: number): Promise<Rubric | null> {
+    try {
+        const { data, error } = await supabase
+            .from('Rubric')
+            .select('*')
+            .eq('id', rubricId)
+            .single();
+
+        if (error || !data) {
+            console.error('Error fetching rubric:', error);
+            return null;
+        }
+
+        return {
+            id: data.id,
+            topic_one: Array.isArray(data.topic_one) ? data.topic_one : [],
+            topic_two: Array.isArray(data.topic_two) ? data.topic_two : [],
+            use_topic_2: data.use_topic_2 || false,
+        } as Rubric;
+    } catch (e) {
+        console.error('Error fetching rubric:', e);
+        return null;
+    }
+}
+
+export async function createRubric(rubric: Omit<Rubric, 'id'>): Promise<number | null> {
+    try {
+        // jsonb columns handle arrays/objects directly
+        const { data, error } = await supabase
+            .from('Rubric')
+            .insert({
+                topic_one: rubric.topic_one,
+                topic_two: rubric.topic_two,
+                use_topic_2: rubric.use_topic_2,
+            })
+            .select('id')
+            .single();
+
+        if (error || !data) {
+            console.error('Error creating rubric:', error);
+            return null;
+        }
+
+        return data.id;
+    } catch (e) {
+        console.error('Error creating rubric:', e);
+        return null;
+    }
+}
+
+export async function updateRubric(rubricId: number, rubric: Omit<Rubric, 'id'>): Promise<boolean> {
+    try {
+        // jsonb columns handle arrays/objects directly
+        const { error } = await supabase
+            .from('Rubric')
+            .update({
+                topic_one: rubric.topic_one,
+                topic_two: rubric.topic_two,
+                use_topic_2: rubric.use_topic_2,
+            })
+            .eq('id', rubricId);
+
+        if (error) {
+            console.error('Error updating rubric:', error);
+            return false;
+        }
+
+        return true;
+    } catch (e) {
+        console.error('Error updating rubric:', e);
+        return false;
+    }
+}
+
+export async function updateCommitteeRubricId(committeeId: number, rubricId: number | null): Promise<boolean> {
+    try {
+        const { error } = await supabase
+            .from('Committee')
+            .update({ rubric_id: rubricId })
+            .eq('id', committeeId);
+
+        if (error) {
+            console.error('Error updating committee rubric_id:', error);
+            return false;
+        }
+
+        return true;
+    } catch (e) {
+        console.error('Error updating committee rubric_id:', e);
+        return false;
+    }
 }

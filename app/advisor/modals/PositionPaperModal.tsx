@@ -56,19 +56,6 @@ function PositionPaperModal({
         }
     };
 
-    const handleDownloadGraded = async () => {
-        if (!paperId) return;
-        setDownloading('graded');
-        setError(null);
-        try {
-            // For now, download from the same URL. This can be updated if there's a separate graded paper URL
-            await downloadPositionPaperByPaperId(paperId);
-        } catch (e: any) {
-            setError(e.message || 'Failed to download graded paper');
-        } finally {
-            setDownloading(null);
-        }
-    };
 
     /*const calculateTotalScore = () => {
         if (!paper) return 0;
@@ -140,26 +127,6 @@ function PositionPaperModal({
                                 ) : (
                                     'Download Original'
                                 )}
-                            </button>
-                            <button
-                                className={`btn btn-lg w-full ${paper.graded ? 'btn-success' : 'btn-disabled'}`}
-                                onClick={handleDownloadGraded}
-                                disabled={downloading !== null || !paper.graded}
-                            >
-                                {downloading === 'graded' ? (
-                                    <>
-                                        <span className="loading loading-spinner"></span>
-                                        Downloading...
-                                    </>
-                                ) : (
-                                    'Download Graded'
-                                )}
-                            </button>
-                            <button
-                                className={`btn btn-lg w-full ${paper.graded ? 'btn-primary' : 'btn-disabled'}`}
-                                disabled={!paper.graded}
-                            >
-                                View Final Score
                             </button>
                         </div>
                     </div>
