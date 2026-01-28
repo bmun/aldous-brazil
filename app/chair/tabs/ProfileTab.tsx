@@ -267,7 +267,7 @@ function ProfileTab({ chair: _chair, committeeName, committeeShortName, assignme
     return (
         <div className="flex flex-col gap-6 w-full">
             {/* Title card: committee + progress */}
-            <div className="card bg-base-100 shadow-xl border border-base-300">
+            <div className="card bg-base-100 shadow-xl border-2 border-primary">
                 <div className="card-body">
                     <div className="flex flex-row items-center gap-4 flex-wrap">
                         <h2
@@ -361,7 +361,7 @@ function ProfileTab({ chair: _chair, committeeName, committeeShortName, assignme
             </div>
 
             {/* Rubric editor */}
-            <div className="card bg-base-100 shadow-xl border border-base-300">
+            <div className="card bg-base-100 shadow-xl border-2 border-primary">
                 <div className="card-body">
                     <div className="flex flex-row justify-between items-end mb-4">
                         <h3
@@ -452,7 +452,7 @@ function ProfileTab({ chair: _chair, committeeName, committeeShortName, assignme
             </div>
 
             {/* Chair form - split into two halves */}
-            <div className="card bg-base-100 shadow-xl border border-base-300">
+            <div className="card bg-base-100 shadow-xl border-2 border-primary">
                 <div className="card-body">
                     <div className="flex flex-row justify-between items-end mb-4">
                         <h3
