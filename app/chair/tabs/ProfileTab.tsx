@@ -8,7 +8,6 @@ import {
     PositionPaperWithId,
     updateChairInfoForCurrentChair,
     Rubric,
-    RubricItem,
     getRubricById,
     createRubric,
     updateRubric,
@@ -44,7 +43,7 @@ interface PaperStats {
     loading: boolean;
 }
 
-function ProfileTab({ chair, committeeName, committeeShortName, assignments }: ProfileTabProps) {
+function ProfileTab({ chair: _chair, committeeName, committeeShortName, assignments }: ProfileTabProps) {
     const isSpecialCommittee = committeeShortName ? SINGLE_COMMITTEE.includes(committeeShortName) : false;
     const [paperStats, setPaperStats] = useState<PaperStats>({
         total: 0,
@@ -94,7 +93,7 @@ function ProfileTab({ chair, committeeName, committeeShortName, assignments }: P
                 setPapers([]);
             }
         })();
-    }, [assignments]);
+    }, [assignments, committee]);
 
     // Load existing chair_info and rubric for this committee
     useEffect(() => {
@@ -270,31 +269,91 @@ function ProfileTab({ chair, committeeName, committeeShortName, assignments }: P
             {/* Title card: committee + progress */}
             <div className="card bg-base-100 shadow-xl border border-base-300">
                 <div className="card-body">
-                    <h2
-                        className="card-title text-3xl md:text-4xl"
-                        style={{ fontFamily: "var(--font-roboto)" }}
-                    >
-                        {committeeName ? (
-                            <>
-                                <span className="text-primary">{committeeName}</span>
-                            </>
-                        ) : (
-                            "Committee Overview"
+                    <div className="flex flex-row items-center gap-4 flex-wrap">
+                        <h2
+                            className="card-title text-3xl md:text-4xl flex-1 min-w-0"
+                            style={{ fontFamily: "var(--font-roboto)" }}
+                        >
+                            {committeeShortName && committeeName ? (
+                                <span className="truncate block">
+                                    <span className="text-primary">{committeeShortName}</span>
+                                    <span className="text-white">: {committeeName}</span>
+                                </span>
+                            ) : committeeName ? (
+                                <span className="truncate block text-primary">{committeeName}</span>
+                            ) : (
+                                "Committee Overview"
+                            )}
+                        </h2>
+                        {!paperStats.loading && paperStats.total > 0 && (
+                            <div className="flex-1 min-w-[200px] max-w-md">
+                                <div className="flex flex-row justify-between items-center mb-1">
+                                    <span className="text-sm font-semibold">Progress</span>
+                                    <span className="text-sm font-semibold">
+                                        {Math.round(((paperStats.total - paperStats.ungraded) / paperStats.total) * 100)}%
+                                    </span>
+                                </div>
+                                <progress 
+                                    className="progress progress-primary w-full" 
+                                    value={paperStats.total - paperStats.ungraded} 
+                                    max={paperStats.total}
+                                />
+                            </div>
                         )}
-                    </h2>
+                    </div>
                     <div className="mt-4 flex flex-row flex-wrap gap-4 items-center">
                         {paperStats.loading ? (
-                            <span className="loading loading-spinner loading-sm" />
+                            <>
+                                <div className="h-8 bg-base-300 rounded w-24 animate-pulse"></div>
+                                <div className="h-8 bg-base-300 rounded w-24 animate-pulse"></div>
+                                <div className="h-8 bg-base-300 rounded w-32 animate-pulse"></div>
+                            </>
                         ) : (
                             <>
                                 <div className="badge badge-primary badge-lg gap-2">
                                     Total Papers
                                     <span className="font-bold">{paperStats.total}</span>
                                 </div>
-                                <div className="badge badge-warning badge-lg gap-2">
+                                <div className="badge badge-lg gap-2 bg-gray-500 text-white">
                                     Ungraded
                                     <span className="font-bold">{paperStats.ungraded}</span>
                                 </div>
+                                {/* Chair chips with graded/assigned counts */}
+                                {committee?.chair_info && Array.isArray(committee.chair_info) && committee.chair_info.length > 0 && (
+                                    <div className="overflow-x-auto flex-1 min-w-0 scrollbar-hide" style={{ 
+                                        scrollbarWidth: 'none', 
+                                        msOverflowStyle: 'none',
+                                    }}>
+                                        <div className="flex flex-row gap-2 items-center min-w-max">
+                                            {committee.chair_info.map((chair: ChairInfo, index: number) => {
+                                                // Count papers assigned to this chair
+                                                const assignedPaperIds = chair.assignment_ids || [];
+                                                const assignedCount = assignedPaperIds.length;
+                                                
+                                                // Count how many of those papers are graded
+                                                const gradedCount = papers.filter(p => 
+                                                    p.id && assignedPaperIds.includes(p.id) && p.graded
+                                                ).length;
+                                                
+                                                return (
+                                                    <div
+                                                        key={index}
+                                                        className="badge badge-lg p-3 whitespace-nowrap"
+                                                        style={{
+                                                            backgroundColor: chair.color,
+                                                            color: '#fff',
+                                                        }}
+                                                    >
+                                                        <span className="font-semibold">{chair.name}</span>
+                                                        <span className="ml-2 opacity-90">
+                                                            ({gradedCount} / {assignedCount})
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
                             </>
                         )}
                     </div>
@@ -339,10 +398,10 @@ function ProfileTab({ chair, committeeName, committeeShortName, assignments }: P
                                 <div className="space-y-4">
                                     <p className="text-xl font-semibold" style={{ fontFamily: "var(--font-roboto)" }}>Topic 1</p>
                                     {rubric.topic_one.map((item, index) => (
-                                        <div key={index} className="space-y-2">
+                                        <div key={index} className="flex flex-row gap-3 items-center">
                                             <input
                                                 type="text"
-                                                className="input input-md input-bordered w-full"
+                                                className="input input-lg input-bordered flex-[3] text-lg"
                                                 placeholder={`Section ${index + 1} name`}
                                                 value={item.name}
                                                 onChange={(e) => updateRubricItem('topic_one', index, 'name', e.target.value)}
@@ -350,8 +409,8 @@ function ProfileTab({ chair, committeeName, committeeShortName, assignments }: P
                                             <input
                                                 type="number"
                                                 min="0"
-                                                className="input input-md input-bordered w-full"
-                                                placeholder="Max value"
+                                                className="input input-lg input-bordered flex-1 text-lg"
+                                                placeholder="Max"
                                                 value={item.value || ''}
                                                 onChange={(e) => updateRubricItem('topic_one', index, 'value', parseInt(e.target.value) || 0)}
                                             />
@@ -363,10 +422,10 @@ function ProfileTab({ chair, committeeName, committeeShortName, assignments }: P
                                 <div className={`space-y-4 ${isSpecialCommittee ? 'opacity-50' : ''}`}>
                                     <p className="text-xl font-semibold" style={{ fontFamily: "var(--font-roboto)" }}>Topic 2</p>
                                     {rubric.topic_two.map((item, index) => (
-                                        <div key={index} className="space-y-2">
+                                        <div key={index} className="flex flex-row gap-3 items-center">
                                             <input
                                                 type="text"
-                                                className="input input-md input-bordered w-full"
+                                                className="input input-lg input-bordered flex-[3] text-lg"
                                                 placeholder={`Section ${index + 1} name`}
                                                 value={item.name}
                                                 onChange={(e) => updateRubricItem('topic_two', index, 'name', e.target.value)}
@@ -375,8 +434,8 @@ function ProfileTab({ chair, committeeName, committeeShortName, assignments }: P
                                             <input
                                                 type="number"
                                                 min="0"
-                                                className="input input-md input-bordered w-full"
-                                                placeholder="Max value"
+                                                className="input input-lg input-bordered flex-1 text-lg"
+                                                placeholder="Max"
                                                 value={item.value || ''}
                                                 onChange={(e) => updateRubricItem('topic_two', index, 'value', parseInt(e.target.value) || 0)}
                                                 disabled={isSpecialCommittee}
@@ -453,8 +512,14 @@ function ProfileTab({ chair, committeeName, committeeShortName, assignments }: P
                                     <div className="relative">
                                         <button
                                             type="button"
-                                            className="btn btn-outline rounded-lg min-h-0 p-0 flex items-center justify-center"
-                                            style={{ width: '56px', height: '56px' }}
+                                            className="btn rounded-lg min-h-0 p-0 flex items-center justify-center border border-base-300 bg-base-100 hover:bg-base-200"
+                                            style={{ 
+                                                width: '56px', 
+                                                height: '56px',
+                                                borderColor: openColorPickerIndex === 0 
+                                                    ? (COLOR_OPTIONS[0]?.value ?? "#1D4ED8")
+                                                    : undefined
+                                            }}
                                             onClick={() => setOpenColorPickerIndex(0)}
                                         >
                                             <div
@@ -468,24 +533,20 @@ function ProfileTab({ chair, committeeName, committeeShortName, assignments }: P
                                                     className="fixed inset-0 z-40"
                                                     onClick={() => setOpenColorPickerIndex(null)}
                                                 />
-                                                <div className="absolute z-50 mt-2 p-3 bg-base-100 border border-base-300 rounded-lg shadow-lg w-[160px]">
-                                                    <div className="grid grid-cols-3 gap-2">
+                                                <div className="absolute z-50 bottom-full mb-2 p-3 bg-base-100 border border-base-300 rounded-lg shadow-lg w-[180px]">
+                                                    <div className="grid grid-cols-3 gap-3">
                                         {COLOR_OPTIONS.map(opt => (
                                             <button
                                                 key={opt.value}
                                                 type="button"
-                                                                className={`w-10 h-10 rounded-full border-2 ${
-                                                    COLOR_OPTIONS[0]?.value === opt.value
-                                                        ? "border-primary"
-                                                        : "border-transparent"
-                                                }`}
+                                                className="w-12 h-12 rounded-full border-2 border-transparent hover:border-primary transition-all flex-shrink-0"
                                                 style={{ backgroundColor: opt.value }}
                                                 onClick={() => {
                                                     setChairs([{
                                                         name: "",
                                                         color: opt.value,
                                                     }]);
-                                                                    setOpenColorPickerIndex(null);
+                                                    setOpenColorPickerIndex(null);
                                                 }}
                                             />
                                         ))}
@@ -520,8 +581,14 @@ function ProfileTab({ chair, committeeName, committeeShortName, assignments }: P
                                     <div className="relative">
                                         <button
                                             type="button"
-                                            className="btn btn-outline rounded-lg min-h-0 p-0 flex items-center justify-center"
-                                            style={{ width: '56px', height: '56px' }}
+                                            className="btn rounded-lg min-h-0 p-0 flex items-center justify-center border border-base-300 bg-base-100 hover:bg-base-200"
+                                            style={{ 
+                                                width: '56px', 
+                                                height: '56px',
+                                                borderColor: openColorPickerIndex === index 
+                                                    ? chairInfo.color
+                                                    : undefined
+                                            }}
                                             onClick={() => setOpenColorPickerIndex(index)}
                                         >
                                             <div
@@ -535,22 +602,22 @@ function ProfileTab({ chair, committeeName, committeeShortName, assignments }: P
                                                     className="fixed inset-0 z-40"
                                                     onClick={() => setOpenColorPickerIndex(null)}
                                                 />
-                                                <div className="absolute z-50 mt-2 p-3 bg-base-100 border border-base-300 rounded-lg shadow-lg w-[160px]">
-                                                    <div className="grid grid-cols-3 gap-2">
+                                                <div className="absolute z-50 bottom-full mb-2 p-3 bg-base-100 border border-base-300 rounded-lg shadow-lg w-[180px]">
+                                                    <div className="grid grid-cols-3 gap-3">
                                         {COLOR_OPTIONS.map(opt => (
                                             <button
                                                 key={opt.value}
                                                 type="button"
-                                                                className={`w-14 h-14 rounded-full border-2 ${
+                                                className={`w-12 h-12 rounded-full border-2 flex-shrink-0 transition-all ${
                                                     chairInfo.color === opt.value
                                                         ? "border-primary"
-                                                        : "border-transparent"
+                                                        : "border-transparent hover:border-primary"
                                                 }`}
                                                 style={{ backgroundColor: opt.value }}
-                                                                onClick={() => {
-                                                                    updateChairColor(index, opt.value);
-                                                                    setOpenColorPickerIndex(null);
-                                                                }}
+                                                onClick={() => {
+                                                    updateChairColor(index, opt.value);
+                                                    setOpenColorPickerIndex(null);
+                                                }}
                                             />
                                         ))}
                                                     </div>
@@ -580,4 +647,3 @@ function ProfileTab({ chair, committeeName, committeeShortName, assignments }: P
 }
 
 export default ProfileTab;
-

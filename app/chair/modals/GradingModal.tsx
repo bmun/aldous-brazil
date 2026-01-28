@@ -10,7 +10,6 @@ import {
     downloadGradedPaper,
     Rubric,
     getRubricById,
-    ChairCommitteeInfo,
     getCommitteeForCurrentChair,
 } from "@/app/utils/supabaseHelpers";
 import { supabase } from "@/supabaseClient";
@@ -37,7 +36,6 @@ function GradingModal({
     const [paper, setPaper] = useState<PositionPaper | null>(null);
     const [loading, setLoading] = useState(false);
     const [downloading, setDownloading] = useState<'original' | 'graded' | null>(null);
-    const [uploading, setUploading] = useState(false);
     const [grading, setGrading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [hasGradedPaper, setHasGradedPaper] = useState(false);
@@ -97,7 +95,7 @@ function GradingModal({
                         const { data: files } = await supabase.storage
                             .from('position-papers')
                             .list(`${assignmentId}/graded`, { limit: 1 });
-                        setHasGradedPaper(files && files.length > 0);
+                        setHasGradedPaper(!!(files && files.length > 0));
                     } catch {
                         setHasGradedPaper(false);
                     }
@@ -150,7 +148,13 @@ function GradingModal({
     };
 
     const handleGrade = async () => {
-        if (!paperId || !gradedFile) {
+        if (!paperId) {
+            setError('Paper ID is required');
+            return;
+        }
+
+        // Only require graded file if no graded paper exists yet
+        if (!hasGradedPaper && !gradedFile) {
             setError('Please upload a graded paper before submitting');
             return;
         }
@@ -159,10 +163,12 @@ function GradingModal({
         setError(null);
 
         try {
-            // Upload graded paper
-            const uploadSuccess = await uploadGradedPaper(paperId, assignmentId, gradedFile);
-            if (!uploadSuccess) {
-                throw new Error('Failed to upload graded paper');
+            // Upload graded paper only if a new file is provided
+            if (gradedFile) {
+                const uploadSuccess = await uploadGradedPaper(paperId, assignmentId, gradedFile);
+                if (!uploadSuccess) {
+                    throw new Error('Failed to upload graded paper');
+                }
             }
 
             // Prepare scores - if special committee, set topic 2 scores to 0
@@ -200,22 +206,39 @@ function GradingModal({
     return (
         <div className="fixed z-50 inset-0 w-full h-full flex flex-row items-center justify-center">
             <div
-                className="absolute z-10 w-full h-full bg-black opacity-60"
+                className="absolute z-10 w-full h-full bg-black"
+                style={{
+                    animation: 'fadeIn 0.3s ease-out forwards',
+                }}
                 onClick={() => setIsOpen(false)}
             />
-            <div className="z-20 bg-base-100 border-2 border-primary rounded-lg w-full max-w-4xl max-h-[90vh] overflow-scroll p-6">
-                <p className="text-3xl font-bold mb-4">Grade Position Paper</p>
+            <div 
+                className="z-20 bg-base-100 border-2 border-primary rounded-lg w-full max-w-4xl overflow-hidden p-6 transition-all ease-out"
+                style={{
+                    animation: 'modalSlideIn 0.3s ease-out forwards',
+                    maxHeight: loading ? '250px' : '90vh',
+                    transitionDuration: '1000ms',
+                    transitionProperty: 'max-height',
+                }}
+            >
+                <div 
+                    className="overflow-scroll"
+                    style={{
+                        maxHeight: 'calc(90vh - 3rem)',
+                    }}
+                >
+                    <p className="text-3xl font-bold mb-4">Grade Position Paper</p>
 
-                {loading ? (
-                    <div className="flex items-center justify-center py-8">
-                        <span className="loading loading-spinner loading-lg" />
-                    </div>
-                ) : error && !paper ? (
-                    <div className="alert alert-error">
-                        <span>{error}</span>
-                    </div>
-                ) : paper ? (
-                    <div className="space-y-6">
+                    {loading ? (
+                        <div className="flex items-center justify-center py-8" style={{ minHeight: '150px' }}>
+                            <span className="loading loading-spinner loading-lg" />
+                        </div>
+                    ) : error && !paper ? (
+                        <div className="alert alert-error">
+                            <span>{error}</span>
+                        </div>
+                    ) : paper ? (
+                        <div className="space-y-6">
                         {/* Download buttons */}
                         <div className="flex flex-row gap-4">
                             <button
@@ -249,16 +272,28 @@ function GradingModal({
                         </div>
 
                         {/* Upload graded paper */}
-                        <div className="form-control">
-                            <label className="label">
-                                <span className="label-text text-lg font-semibold">Upload Annotated Paper</span>
-                            </label>
-                            <input
-                                type="file"
-                                accept=".pdf,.doc,.docx"
-                                className="file-input file-input-bordered w-full"
-                                onChange={handleFileChange}
-                            />
+                        <div className="space-y-4">
+                            <p className="text-xl font-semibold">
+                                Upload Annotated Paper
+                                {hasGradedPaper && (
+                                    <span className="text-sm font-normal text-base-content/70 ml-2">
+                                        (Optional - graded paper already exists)
+                                    </span>
+                                )}
+                            </p>
+                            <div className="form-control">
+                                <label className="label">
+                                    <span className="label-text">Annotated Paper File</span>
+                                </label>
+                                <div className="mt-2">
+                                    <input
+                                        type="file"
+                                        accept=".pdf,.doc,.docx"
+                                        className="file-input file-input-bordered file-input-lg w-full"
+                                        onChange={handleFileChange}
+                                    />
+                                </div>
+                            </div>
                         </div>
 
                         {/* Score inputs */}
@@ -367,7 +402,7 @@ function GradingModal({
                             <button
                                 className="btn btn-primary btn-lg flex-1"
                                 onClick={handleGrade}
-                                disabled={grading || !gradedFile}
+                                disabled={grading || (!hasGradedPaper && !gradedFile)}
                             >
                                 {grading ? (
                                     <>
@@ -385,6 +420,7 @@ function GradingModal({
                         <span>No position paper found</span>
                     </div>
                 )}
+                </div>
             </div>
         </div>
     );

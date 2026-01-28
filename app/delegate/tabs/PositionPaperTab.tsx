@@ -1,4 +1,4 @@
-import { PositionPaper, uploadPositionPaper, getPositionPaperForCurrentDelegate, downloadPositionPaper } from "@/app/utils/supabaseHelpers";
+import { PositionPaper, uploadPositionPaper, getPositionPaperForCurrentDelegate, downloadPositionPaper, getAssignmentForCurrentDelegate, downloadGradedPaper } from "@/app/utils/supabaseHelpers";
 import { useEffect, useState } from "react";
 
 /*interface ProfileTabProps {
@@ -13,7 +13,8 @@ function PositionPaperTab() {
     const [success, setSuccess] = useState(false)
     const [paper, setPaper] = useState<PositionPaper | null>(null)
     const [paperLoading, setPaperLoading] = useState(false)
-    const [downloading, setDownloading] = useState(false)
+    const [downloading, setDownloading] = useState<'original' | 'graded' | null>(null)
+    const [assignment, setAssignment] = useState<{ id: number } | null>(null)
 
     useEffect(() => {
         (async () => {
@@ -21,6 +22,12 @@ function PositionPaperTab() {
             try {
                 const newPaper = await getPositionPaperForCurrentDelegate()
                 setPaper(newPaper)
+                
+                // Get assignment to access assignment ID
+                const assignmentData = await getAssignmentForCurrentDelegate()
+                if (assignmentData?.id) {
+                    setAssignment({ id: assignmentData.id })
+                }
             } catch (e) {
                 console.error('Error loading position paper:', e)
             }
@@ -69,14 +76,27 @@ function PositionPaperTab() {
     }
 
     async function handleDownload() {
-        setDownloading(true)
+        setDownloading('original')
         setError(null)
         try {
             await downloadPositionPaper()
         } catch (err: any) {
             setError(err.message ?? 'Download failed')
         } finally {
-            setDownloading(false)
+            setDownloading(null)
+        }
+    }
+
+    async function handleDownloadGraded() {
+        if (!paper?.id || !assignment?.id) return
+        setDownloading('graded')
+        setError(null)
+        try {
+            await downloadGradedPaper(paper.id, assignment.id)
+        } catch (err: any) {
+            setError(err.message ?? 'Failed to download graded paper')
+        } finally {
+            setDownloading(null)
         }
     }
 
@@ -185,17 +205,36 @@ function PositionPaperTab() {
                                 Uploaded Paper
                             </h3>
                             {paperLoading ? (
-                                <div className="flex items-center justify-center py-4">
-                                    <span className="loading loading-spinner" />
+                                <div className="flex flex-row gap-10 items-start mt-1">
+                                    <div className="h-12 bg-base-300 rounded w-40 animate-pulse"></div>
+                                    <div className="h-12 bg-base-300 rounded w-40 animate-pulse"></div>
+                                    <div className="h-12 bg-base-300 rounded w-32 animate-pulse"></div>
                                 </div>
                             ) : <div className="flex flex-row gap-10 items-start mt-1">
                                     <fieldset>
                                         <button 
                                             className="btn btn-secondary btn-active mt-1"
                                             onClick={handleDownload}
-                                            disabled={downloading || paper == null}
+                                            disabled={downloading !== null || paper == null}
                                         >
-                                            {downloading ? 'Downloading…' : 'Download Original'}
+                                            {downloading === 'original' ? 'Downloading…' : 'Download Original'}
+                                        </button>
+                                    </fieldset>
+                                    <fieldset>
+                                        <button 
+                                            className="btn btn-success btn-active mt-1"
+                                            onClick={handleDownloadGraded}
+                                            disabled={downloading !== null || !paper?.graded || !paper?.id || !assignment?.id || true}
+                                        >
+                                            {downloading === 'graded' ? 'Downloading…' : 'Download Graded'}
+                                        </button>
+                                    </fieldset>
+                                    <fieldset>
+                                        <button 
+                                            className="btn btn-info btn-active mt-1"
+                                            disabled={!paper?.graded || true}
+                                        >
+                                            View Grade
                                         </button>
                                     </fieldset>
                                 </div>

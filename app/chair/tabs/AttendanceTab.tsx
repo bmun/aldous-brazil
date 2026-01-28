@@ -19,7 +19,7 @@ type AttendanceState = Record<string, boolean[]>; // key: email, value: 8-sessio
 type SortField = 'country' | 'delegate' | 'email' | null;
 type SortDirection = 'asc' | 'desc';
 
-function AttendanceTab({ committeeName, delegates, assignments }: AttendanceTabProps) {
+function AttendanceTab({ committeeName: _committeeName, delegates, assignments }: AttendanceTabProps) {
     const [rows, setRows] = useState<AttendanceRow[]>([]);
     const [attendance, setAttendance] = useState<AttendanceState>({});
     const [sortField, setSortField] = useState<SortField>('country');
@@ -110,25 +110,6 @@ function AttendanceTab({ committeeName, delegates, assignments }: AttendanceTabP
 
     return (
         <div className="flex flex-col gap-6 w-full">
-            {/*<div className="card bg-base-100 shadow-xl border border-base-300">
-                <div className="card-body">
-                    <h2
-                        className="card-title text-3xl md:text-4xl"
-                        style={{ fontFamily: "var(--font-roboto)" }}
-                    >
-                        Attendance
-                    </h2>
-                    {committeeName && (
-                        <p className="mt-2 text-lg md:text-xl">
-                            Track attendance for <span className="font-semibold text-primary">{committeeName}</span>.
-                        </p>
-                    )}
-                    <p className="mt-2 text-sm opacity-70">
-                        Attendance checkboxes are currently stored locally in this view and are not yet saved to the database.
-                    </p>
-                </div>
-            </div>*/}
-
             <div className="overflow-scroll rounded-xl border-2 border-primary bg-base-100">
                 <table className="table table-zebra text-base md:text-lg text-center">
                     <thead>
@@ -168,12 +149,12 @@ function AttendanceTab({ committeeName, delegates, assignments }: AttendanceTabP
                         ) : (
                             sortedRows.map(row => (
                                 <tr key={row.id} className="text-sm md:text-base">
-                                    <td className="px-4 py-2">
+                                    <td className="px-4 py-2 whitespace-nowrap">
                                         <span className="font-semibold text-primary">
                                             {row.country_name}
                                         </span>
                                     </td>
-                                    <td className="px-4 py-2">
+                                    <td className="px-4 py-2 whitespace-nowrap">
                                         <span className="font-semibold">
                                             {`${row.first_name} ${row.last_name}`.trim() || "Delegate"}
                                         </span>
@@ -202,4 +183,3 @@ function AttendanceTab({ committeeName, delegates, assignments }: AttendanceTabP
 }
 
 export default AttendanceTab;
-

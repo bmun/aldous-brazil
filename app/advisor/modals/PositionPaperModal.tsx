@@ -1,6 +1,6 @@
 'use client';
 
-import { PositionPaper, getPositionPaperByPaperId, downloadPositionPaperByPaperId } from "@/app/utils/supabaseHelpers";
+import { PositionPaper, getPositionPaperByPaperId, downloadPositionPaperByPaperId, downloadGradedPaper } from "@/app/utils/supabaseHelpers";
 import { useEffect, useState } from "react";
 
 interface PositionPaperModalProps {
@@ -8,7 +8,8 @@ interface PositionPaperModalProps {
     committeeName: string,
     countryName: string,
     isOpen: boolean,
-    setIsOpen: (open: boolean) => void
+    setIsOpen: (open: boolean) => void,
+    assignmentId?: number | null
 }
 
 function PositionPaperModal({
@@ -16,7 +17,8 @@ function PositionPaperModal({
     committeeName,
     countryName,
     isOpen,
-    setIsOpen
+    setIsOpen,
+    assignmentId
 }: PositionPaperModalProps) {
     const [paper, setPaper] = useState<PositionPaper | null>(null);
     const [loading, setLoading] = useState(false);
@@ -51,6 +53,19 @@ function PositionPaperModal({
             await downloadPositionPaperByPaperId(paperId);
         } catch (e: any) {
             setError(e.message || 'Failed to download original paper');
+        } finally {
+            setDownloading(null);
+        }
+    };
+
+    const handleDownloadGraded = async () => {
+        if (!paperId || !assignmentId) return;
+        setDownloading('graded');
+        setError(null);
+        try {
+            await downloadGradedPaper(paperId, assignmentId);
+        } catch (e: any) {
+            setError(e.message || 'Failed to download graded paper');
         } finally {
             setDownloading(null);
         }
@@ -101,7 +116,7 @@ function PositionPaperModal({
                                     <div>
                                         <p className="text-sm opacity-70 mb-1">Status</p>
                                         <p className="text-lg">
-                                            {paper.graded ? (
+                                            {paper.graded && false ? (
                                                 <span className="badge badge-success">Graded</span>
                                             ) : (
                                                 <span className="badge badge-warning">Submitted</span>
@@ -127,6 +142,26 @@ function PositionPaperModal({
                                 ) : (
                                     'Download Original'
                                 )}
+                            </button>
+                            <button
+                                className="btn btn-success btn-lg w-full"
+                                onClick={handleDownloadGraded}
+                                disabled={downloading !== null || !paper?.graded || !paperId || !assignmentId || true}
+                            >
+                                {downloading === 'graded' ? (
+                                    <>
+                                        <span className="loading loading-spinner"></span>
+                                        Downloading...
+                                    </>
+                                ) : (
+                                    'Download Graded'
+                                )}
+                            </button>
+                            <button
+                                className="btn btn-info btn-lg w-full"
+                                disabled={!paper?.graded || true}
+                            >
+                                View Grade
                             </button>
                         </div>
                     </div>

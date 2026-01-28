@@ -22,6 +22,7 @@ function AssignmentView() {
     // Position paper modal state
     const [paperModalOpen, setPaperModalOpen] = useState(false);
     const [selectedPaperId, setSelectedPaperId] = useState<number | null>(null);
+    const [selectedAssignmentId, setSelectedAssignmentId] = useState<number | null>(null);
     const [selectedCommitteeName, setSelectedCommitteeName] = useState("");
     const [selectedCountryName, setSelectedCountryName] = useState("");
 
@@ -152,6 +153,7 @@ function AssignmentView() {
                 countryName={selectedCountryName}
                 isOpen={paperModalOpen}
                 setIsOpen={setPaperModalOpen}
+                assignmentId={selectedAssignmentId}
             />
             <div className="flex flex-col gap-2 mb-4 h-full">
                 <div className="flex flex-row gap-6 mr-2 justify-between items-end">
@@ -251,6 +253,7 @@ function AssignmentView() {
                                                     className="btn btn-secondary btn-lg text-white"
                                                     onClick={() => {
                                                         setSelectedPaperId(assignment.paper_id!);
+                                                        setSelectedAssignmentId(assignment.id || null);
                                                         setSelectedCommitteeName(assignment.committee_name);
                                                         setSelectedCountryName(assignment.country_name);
                                                         setPaperModalOpen(true);

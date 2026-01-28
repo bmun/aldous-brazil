@@ -7,6 +7,9 @@ import {
     ChairCommitteeInfo,
     Rubric,
     getRubricById,
+    assignPaperToChair,
+    ChairInfo,
+    getCommitteeForCurrentChair,
 } from "@/app/utils/supabaseHelpers";
 import GradingModal from "../modals/GradingModal";
 import { SINGLE_COMMITTEE } from "@/app/utils/generalHelper";
@@ -16,7 +19,7 @@ interface PapersTabProps {
     committeeShortName?: string;
     delegates: DelegateProps[];
     assignments: AssignmentProps[];
-    committee?: ChairCommitteeInfo | null;
+    committee: ChairCommitteeInfo | null;
 }
 
 interface PaperRow {
@@ -26,16 +29,19 @@ interface PaperRow {
     delegate_name: string;
     email: string;
     submitted_at: string;
+    submitted_at_date: Date | null; // For sorting
     graded: boolean;
     paper: PositionPaperWithId | null;
+    assignedChairIndex: number | null; // Index of chair in committee.chair_info array
 }
 
-type SortField = 'country' | 'delegate' | 'email' | null;
+type SortField = 'country' | 'delegate' | 'email' | 'submitted_at' | 'graded' | 'total_score' | 'chair' | null;
 type SortDirection = 'asc' | 'desc';
+type FilterType = number | 'unassigned' | 'none' | null;
 
-function PapersTab({ committeeName, committeeShortName, delegates, assignments, committee }: PapersTabProps) {
+function PapersTab({ committeeName: _committeeName, committeeShortName, delegates, assignments, committee: committeeProp }: PapersTabProps) {
     const isSpecialCommittee = committeeShortName ? SINGLE_COMMITTEE.includes(committeeShortName) : false;
-    const [loading, setLoading] = useState(true);
+    const [_loading, setLoading] = useState(true);
     const [rows, setRows] = useState<PaperRow[]>([]);
     const [sortField, setSortField] = useState<SortField>('country');
     const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -43,8 +49,15 @@ function PapersTab({ committeeName, committeeShortName, delegates, assignments, 
     const [selectedPaperId, setSelectedPaperId] = useState<number | null>(null);
     const [selectedAssignmentId, setSelectedAssignmentId] = useState<number | null>(null);
     const [rubric, setRubric] = useState<Rubric | null>(null);
+    const [selectedFilter, setSelectedFilter] = useState<FilterType>('none');
+    const [committee, setCommittee] = useState<ChairCommitteeInfo | null>(committeeProp || null);
+    const [isUpdatingChair, setIsUpdatingChair] = useState(false);
 
     useEffect(() => {
+        // Skip loading if we're just updating chair assignments
+        if (isUpdatingChair) {
+            return;
+        }
         (async () => {
             setLoading(true);
             try {
@@ -94,6 +107,20 @@ function PapersTab({ committeeName, committeeShortName, delegates, assignments, 
                     const submittedAt = paper.submission_date
                         ? new Date(paper.submission_date).toLocaleString()
                         : "N/A";
+                    
+                    const submittedAtDate = paper.submission_date
+                        ? new Date(paper.submission_date)
+                        : null;
+
+                    // Find which chair (if any) has this paper_id in their assignment_ids
+                    let assignedChairIndex: number | null = null;
+                    if (committee?.chair_info && Array.isArray(committee.chair_info)) {
+                        committee.chair_info.forEach((chair: ChairInfo, index: number) => {
+                            if (chair.assignment_ids && chair.assignment_ids.includes(paper.id!)) {
+                                assignedChairIndex = index;
+                            }
+                        });
+                    }
 
                     builtRows.push({
                         id: `${d.email}-${assignment.id}`,
@@ -102,8 +129,10 @@ function PapersTab({ committeeName, committeeShortName, delegates, assignments, 
                         delegate_name: `${d.first_name || ""} ${d.last_name || ""}`.trim() || "Delegate",
                         email: d.email,
                         submitted_at: submittedAt,
+                        submitted_at_date: submittedAtDate,
                         graded: paper.graded,
                         paper: paper,
+                        assignedChairIndex: assignedChairIndex,
                     });
                 });
 
@@ -114,7 +143,14 @@ function PapersTab({ committeeName, committeeShortName, delegates, assignments, 
             }
             setLoading(false);
         })();
-    }, [delegates, assignments]);
+    }, [delegates, assignments, committee, isUpdatingChair]);
+
+    // Update local committee state when prop changes
+    useEffect(() => {
+        if (committeeProp) {
+            setCommittee(committeeProp);
+        }
+    }, [committeeProp]);
 
     // Load rubric when committee changes
     useEffect(() => {
@@ -180,9 +216,51 @@ function PapersTab({ committeeName, committeeShortName, delegates, assignments, 
             case 'email':
                 comparison = a.email.toLowerCase().localeCompare(b.email.toLowerCase());
                 break;
+            case 'submitted_at':
+                // Sort by date, with null dates at the end
+                if (!a.submitted_at_date && !b.submitted_at_date) comparison = 0;
+                else if (!a.submitted_at_date) comparison = 1;
+                else if (!b.submitted_at_date) comparison = -1;
+                else comparison = a.submitted_at_date.getTime() - b.submitted_at_date.getTime();
+                break;
+            case 'graded':
+                // Sort by graded status (true first when ascending)
+                if (a.graded === b.graded) comparison = 0;
+                else comparison = a.graded ? 1 : -1;
+                break;
+            case 'total_score':
+                // Sort by total score, with null scores at the end
+                const scoreA = calculateTotalScore(a.paper);
+                const scoreB = calculateTotalScore(b.paper);
+                if (scoreA === null && scoreB === null) comparison = 0;
+                else if (scoreA === null) comparison = 1;
+                else if (scoreB === null) comparison = -1;
+                else comparison = scoreA - scoreB;
+                break;
+            case 'chair':
+                // Sort by chair name, with unassigned at the end
+                const chairA = a.assignedChairIndex !== null && committee?.chair_info?.[a.assignedChairIndex]
+                    ? committee.chair_info[a.assignedChairIndex].name
+                    : '';
+                const chairB = b.assignedChairIndex !== null && committee?.chair_info?.[b.assignedChairIndex]
+                    ? committee.chair_info[b.assignedChairIndex].name
+                    : '';
+                if (!chairA && !chairB) comparison = 0;
+                else if (!chairA) comparison = 1;
+                else if (!chairB) comparison = -1;
+                else comparison = chairA.localeCompare(chairB);
+                break;
         }
         
         return sortDirection === 'asc' ? comparison : -comparison;
+    });
+
+    // Filter rows based on selected filter
+    const filteredRows = sortedRows.filter(row => {
+        if (selectedFilter === 'none') return true;
+        if (selectedFilter === 'unassigned') return row.assignedChairIndex === null;
+        if (typeof selectedFilter === 'number') return row.assignedChairIndex === selectedFilter;
+        return true;
     });
 
     function handleSort(field: SortField) {
@@ -216,6 +294,77 @@ function PapersTab({ committeeName, committeeShortName, delegates, assignments, 
         }, 500);
     }
 
+    async function handleChairAssignment(paperId: number, chairIndex: number | null) {
+        // Set flag to prevent loading state
+        setIsUpdatingChair(true);
+        
+        // Optimistically update the UI first
+        setRows(prevRows => prevRows.map(row => {
+            if (row.paperId === paperId) {
+                return {
+                    ...row,
+                    assignedChairIndex: chairIndex,
+                };
+            }
+            return row;
+        }));
+
+        const success = await assignPaperToChair(paperId, chairIndex);
+        if (success) {
+            // Reload committee data to reflect the change
+            const updatedCommittee = await getCommitteeForCurrentChair();
+            if (updatedCommittee) {
+                // Update local committee state
+                setCommittee(updatedCommittee);
+                
+                // Verify and update rows to match server state (only if needed)
+                setRows(prevRows => prevRows.map(row => {
+                    if (row.paperId === paperId) {
+                        // Verify this specific row's assignment matches
+                        let newAssignedChairIndex: number | null = null;
+                        if (updatedCommittee.chair_info && Array.isArray(updatedCommittee.chair_info)) {
+                            updatedCommittee.chair_info.forEach((chair: ChairInfo, index: number) => {
+                                if (chair.assignment_ids && chair.assignment_ids.includes(row.paperId)) {
+                                    newAssignedChairIndex = index;
+                                }
+                            });
+                        }
+                        return {
+                            ...row,
+                            assignedChairIndex: newAssignedChairIndex,
+                        };
+                    }
+                    return row;
+                }));
+            }
+        } else {
+            console.error("Failed to assign paper to chair");
+            // Revert optimistic update on failure
+            setRows(prevRows => prevRows.map(row => {
+                if (row.paperId === paperId) {
+                    // Revert to previous state - find the actual assignment from committee
+                    let actualChairIndex: number | null = null;
+                    if (committee?.chair_info && Array.isArray(committee.chair_info)) {
+                        committee.chair_info.forEach((chair: ChairInfo, index: number) => {
+                            if (chair.assignment_ids && chair.assignment_ids.includes(row.paperId)) {
+                                actualChairIndex = index;
+                            }
+                        });
+                    }
+                    return {
+                        ...row,
+                        assignedChairIndex: actualChairIndex,
+                    };
+                }
+                return row;
+            }));
+            alert("Failed to assign paper to chair. Please try again.");
+        }
+        
+        // Reset flag after update completes
+        setIsUpdatingChair(false);
+    }
+
     return (
         <div className="flex flex-col gap-6 w-full">
             <GradingModal
@@ -226,22 +375,48 @@ function PapersTab({ committeeName, committeeShortName, delegates, assignments, 
                 onGraded={handleGraded}
                 committeeShortName={committeeShortName}
             />
-            {/*<div className="card bg-base-100 shadow-xl border border-base-300">
-                <div className="card-body">
-                    <h2
-                        className="card-title text-3xl md:text-4xl"
-                        style={{ fontFamily: "var(--font-roboto)" }}
+
+            {/* Filter Chips */}
+            <div className="flex flex-wrap gap-2 items-center">
+                <button
+                    className={`badge badge-lg p-4 cursor-pointer transition-all ${
+                        selectedFilter === 'none'
+                            ? 'badge-primary'
+                            : 'badge-outline hover:badge-primary'
+                    }`}
+                    onClick={() => setSelectedFilter('none')}
+                >
+                    None
+                </button>
+                <button
+                    className={`badge badge-lg p-4 cursor-pointer transition-all ${
+                        selectedFilter === 'unassigned'
+                            ? 'bg-gray-500 text-white'
+                            : 'badge-outline border-gray-500 text-gray-500 hover:bg-gray-500 hover:text-white'
+                    }`}
+                    onClick={() => setSelectedFilter('unassigned')}
+                >
+                    Unassigned
+                </button>
+                {committee?.chair_info && Array.isArray(committee.chair_info) && committee.chair_info.map((chair: ChairInfo, index: number) => (
+                    <button
+                        key={index}
+                        className={`badge badge-lg p-4 cursor-pointer transition-all ${
+                            selectedFilter === index
+                                ? ''
+                                : 'badge-outline'
+                        }`}
+                        style={{
+                            backgroundColor: selectedFilter === index ? chair.color : undefined,
+                            borderColor: chair.color,
+                            color: selectedFilter === index ? (chair.color ? '#fff' : undefined) : chair.color,
+                        }}
+                        onClick={() => setSelectedFilter(index)}
                     >
-                        Position Papers
-                    </h2>
-                    {committeeName && (
-                        <p className="mt-2 text-lg md:text-xl">
-                            View and grade position papers for{" "}
-                            <span className="font-semibold text-primary">{committeeName}</span>.
-                        </p>
-                    )}
-                </div>
-            </div>*/}
+                        {chair.name}
+                    </button>
+                ))}
+            </div>
 
             <div className="overflow-scroll rounded-xl border-2 border-primary bg-base-100">
                 <table className="table table-zebra text-base md:text-lg text-center">
@@ -265,29 +440,38 @@ function PapersTab({ committeeName, committeeShortName, delegates, assignments, 
                             >
                                 Email {getSortIcon('email')}
                             </th>
-                            <th className="px-4 py-2">Submitted At</th>
-                            <th className="px-4 py-2">Graded</th>
-                            <th className="px-4 py-2">Total Score</th>
+                            <th 
+                                className="px-4 py-2 cursor-pointer hover:bg-base-200 select-none"
+                                onClick={() => handleSort('submitted_at')}
+                            >
+                                Submitted At {getSortIcon('submitted_at')}
+                            </th>
+                            <th 
+                                className="px-4 py-2 cursor-pointer hover:bg-base-200 select-none"
+                                onClick={() => handleSort('graded')}
+                            >
+                                Graded {getSortIcon('graded')}
+                            </th>
+                            <th 
+                                className="px-4 py-2 cursor-pointer hover:bg-base-200 select-none"
+                                onClick={() => handleSort('chair')}
+                            >
+                                Chair {getSortIcon('chair')}
+                            </th>
                             <th className="px-4 py-2">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {loading ? (
-                            <tr>
-                                <td colSpan={7}>
-                                    <div className="flex items-center justify-center py-8">
-                                        <span className="loading loading-spinner loading-lg" />
-                                    </div>
-                                </td>
-                            </tr>
-                        ) : sortedRows.length === 0 ? (
+                        {filteredRows.length === 0 ? (
                             <tr>
                                 <td colSpan={7} className="py-6 text-center text-sm opacity-70">
-                                    No position papers submitted yet for this committee.
+                                    {selectedFilter === 'none' 
+                                        ? "No position papers submitted yet for this committee."
+                                        : "No papers match the selected filter."}
                                 </td>
                             </tr>
                         ) : (
-                            sortedRows.map(row => {
+                            filteredRows.map(row => {
                                 // Find assignment_id for this row
                                 const assignment = assignments.find(a => a.paper_id === row.paperId);
                                 const assignmentId = assignment?.id || null;
@@ -308,16 +492,57 @@ function PapersTab({ committeeName, committeeShortName, delegates, assignments, 
                                         </td>
                                         <td className="px-4 py-2">
                                             {row.graded ? (
-                                                <span className="badge badge-success">Graded</span>
+                                                (() => {
+                                                    const total = calculateTotalScore(row.paper);
+                                                    return total !== null ? (
+                                                        <span className="badge badge-success badge-lg">
+                                                            {total}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="badge badge-success">Graded</span>
+                                                    );
+                                                })()
                                             ) : (
                                                 <span className="badge badge-warning">Not graded</span>
                                             )}
                                         </td>
-                                        <td className="px-4 py-2 font-semibold">
-                                            {(() => {
-                                                const total = calculateTotalScore(row.paper);
-                                                return total !== null ? total : "-";
-                                            })()}
+                                        <td className="px-4 py-2">
+                                            <div className="w-full max-w-xs">
+                                                <select
+                                                    className="select select-bordered w-full text-sm font-semibold py-2"
+                                                    style={{
+                                                        borderColor: row.assignedChairIndex !== null && committee?.chair_info?.[row.assignedChairIndex]
+                                                            ? committee.chair_info[row.assignedChairIndex].color
+                                                            : '#9ca3af',
+                                                        backgroundColor: row.assignedChairIndex !== null && committee?.chair_info?.[row.assignedChairIndex]
+                                                            ? committee.chair_info[row.assignedChairIndex].color
+                                                            : '#9ca3af',
+                                                        color: '#fff',
+                                                        textOverflow: 'ellipsis',
+                                                        overflow: 'hidden',
+                                                        whiteSpace: 'nowrap',
+                                                    }}
+                                                    title={row.assignedChairIndex !== null && committee?.chair_info?.[row.assignedChairIndex]
+                                                        ? committee.chair_info[row.assignedChairIndex].name
+                                                        : 'Unassigned'}
+                                                    value={row.assignedChairIndex !== null ? row.assignedChairIndex : ""}
+                                                    onChange={(e) => {
+                                                        const newChairIndex = e.target.value === "" ? null : parseInt(e.target.value);
+                                                        handleChairAssignment(row.paperId, newChairIndex);
+                                                    }}
+                                                >
+                                                    <option value="" style={{ backgroundColor: '#9ca3af', color: '#fff' }}>Unassigned</option>
+                                                    {committee?.chair_info && Array.isArray(committee.chair_info) && committee.chair_info.map((chair: ChairInfo, index: number) => (
+                                                        <option 
+                                                            key={index} 
+                                                            value={index}
+                                                            style={{ backgroundColor: chair.color, color: '#fff' }}
+                                                        >
+                                                            {chair.name}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
                                         </td>
                                         <td className="px-4 py-2">
                                             {assignmentId ? (
@@ -343,4 +568,3 @@ function PapersTab({ committeeName, committeeShortName, delegates, assignments, 
 }
 
 export default PapersTab;
-

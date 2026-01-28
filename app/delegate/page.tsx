@@ -76,8 +76,43 @@ function DelegateView() {
         setLoggingOut(false);
     }
 
+    useEffect(() => {
+        // Apply gradient to html and body as the true background
+        const gradient = 'linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 25%, #3c5a7f 50%, #2d4a6f 75%, #1e3a5f 100%)';
+        
+        // Store original styles
+        const originalBodyBackground = document.body.style.background;
+        const originalBodyAttachment = document.body.style.backgroundAttachment;
+        const originalHtmlBackground = document.documentElement.style.background;
+        const originalHtmlAttachment = document.documentElement.style.backgroundAttachment;
+        const originalHtmlClass = document.documentElement.className;
+        
+        // Apply gradient to html and body
+        document.documentElement.style.background = gradient;
+        document.documentElement.style.backgroundAttachment = 'fixed';
+        document.body.style.background = gradient;
+        document.body.style.backgroundAttachment = 'fixed';
+        
+        // Remove bg-base-200 class if present
+        document.documentElement.classList.remove('bg-base-200');
+        
+        return () => {
+            // Restore original styles on cleanup
+            document.body.style.background = originalBodyBackground;
+            document.body.style.backgroundAttachment = originalBodyAttachment;
+            document.documentElement.style.background = originalHtmlBackground;
+            document.documentElement.style.backgroundAttachment = originalHtmlAttachment;
+            if (originalHtmlClass.includes('bg-base-200')) {
+                document.documentElement.classList.add('bg-base-200');
+            }
+        };
+    }, []);
+
     return (
-        <div className="flex flex-col gap-5 min-h-screen text-base-content">
+        <div className="flex flex-col gap-5 min-h-screen text-base-content" style={{
+            background: 'linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 25%, #3c5a7f 50%, #2d4a6f 75%, #1e3a5f 100%)',
+            backgroundAttachment: 'fixed',
+        }}>
             {/* Top Nav */}
             <div className="fixed z-20 w-full bg-base-100 border-b border-base-300 shadow-md">
                 <div className="navbar max-w-12/12 sm:max-w-[1400px] lg:w-10/12 mx-auto px-2">
@@ -159,8 +194,32 @@ function DelegateView() {
             <main className="pt-24 pb-10 w-full h-full flex flex-row justify-center items-start">
                 <div className="w-full max-w-12/12 sm:max-w-[1400px] lg:w-10/12 lg:h-10/12 rounded-md sm:p-4">
                     { loadingUser || assignment == null || delegate == null ? (
-                        <div className="flex items-center justify-center h-[60vh]">
-                            <span className="loading loading-spinner loading-lg" />
+                        <div className="flex flex-col gap-6 w-full">
+                            {/* Welcome card skeleton */}
+                            <div className="card bg-base-100 shadow-xl border border-base-300">
+                                <div className="card-body">
+                                    <div className="h-10 bg-base-300 rounded w-96 mb-4 animate-pulse"></div>
+                                    <div className="h-6 bg-base-300 rounded w-full max-w-md animate-pulse"></div>
+                                </div>
+                            </div>
+                            {/* Checklist card skeleton */}
+                            <div className="card bg-base-100 shadow-xl border border-base-300">
+                                <div className="card-body space-y-4">
+                                    <div className="h-8 bg-base-300 rounded w-64 animate-pulse"></div>
+                                    <ul className="space-y-4">
+                                        {[1, 2].map((i) => (
+                                            <li key={i} className="flex flex-row gap-3 items-start">
+                                                <div className="h-6 w-6 bg-base-300 rounded mt-1 animate-pulse"></div>
+                                                <div className="flex flex-col gap-2 flex-1">
+                                                    <div className="h-5 bg-base-300 rounded w-48 animate-pulse"></div>
+                                                    <div className="h-4 bg-base-300 rounded w-full animate-pulse"></div>
+                                                    <div className="h-4 bg-base-300 rounded w-3/4 animate-pulse"></div>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </div>
                         </div>
                     ) : activeTab == "profile" ?
                         <ProfileTab assignment={assignment} delegate={delegate} />
