@@ -47,7 +47,7 @@ function AccountRegistrationModal({registering, setRegistering}: AccountRegistra
         secondary_phone: "",
         primary_student: false,
         secondary_student: false,
-        delegation_type: "Delegation Type"
+        delegation_type: "Individual"
     });
     const [schoolError, setSchoolError] = useState("");
     // Both

@@ -53,7 +53,7 @@ function SchoolForm({school, setSchool, submissionError}: SchoolFormProps) {
                         )} />
                 </div>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-2">
                 <div className="flex flex-col">
                     <label className="label text-lg">
                         Country
@@ -93,8 +93,6 @@ function SchoolForm({school, setSchool, submissionError}: SchoolFormProps) {
                             {...school, state:e.target.value}
                         )} />
                 </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
                 <div className="flex flex-col">
                     <label className="label text-lg">
                         {school.international ? "Postal Code" : "Zip Code"}
@@ -108,7 +106,22 @@ function SchoolForm({school, setSchool, submissionError}: SchoolFormProps) {
                             {...school, zip_code:e.target.value}
                         )} />
                 </div>
-                <div className="flex flex-col w-full">
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+                {/*<div className="flex flex-col">
+                    <label className="label text-lg">
+                        {school.international ? "Postal Code" : "Zip Code"}
+                    </label>
+                    <input 
+                        type="text" 
+                        className={`input input-lg w-full ${submissionError && school.zip_code.length == 0 ? "input-error" : ""}`}
+                        placeholder={school.international ? "Postal Code" : "Zip Code"}
+                        value={school.zip_code}
+                        onChange={(e) => setSchool(
+                            {...school, zip_code:e.target.value}
+                        )} />
+                </div>*/}
+                {/*<div className="flex flex-col w-full">
                     <label className="label text-lg">
                         Delegation Type
                     </label>
@@ -123,7 +136,7 @@ function SchoolForm({school, setSchool, submissionError}: SchoolFormProps) {
                         <option>Club</option>
                         <option>Individual</option>
                     </select>
-                </div>
+                </div>*/}
                 {/*<div className="flex flex-col w-full">
                     <label className="label text-lg">
                         Number of Times Attended

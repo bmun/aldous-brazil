@@ -13,7 +13,7 @@ interface AccountFormProps {
 
 function AccountForm({accountInfo, setAccountInfo, confPassword, setConfPassword, submissionError}: AccountFormProps) {
     return (
-        <fieldset className="flex flex-col gap-4">
+        <fieldset className="w-full flex flex-col gap-4">
             <h5 className="text-5xl">
                 Account Information *
             </h5>
