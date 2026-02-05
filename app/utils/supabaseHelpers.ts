@@ -194,6 +194,114 @@ export async function signUpDelegate(first_name: string, last_name: string, emai
     }
 }
 
+export async function signUpChair(
+    first_name: string, 
+    last_name: string, 
+    email: string, 
+    committee_id: number
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        const password = "bmunlove1952!";
+
+        // Store the current admin session before signUp
+        const originalSession = await supabase.auth.getSession().then(({ data }) => data.session);
+
+        if (!originalSession) {
+            return { success: false, error: 'No session found. Cannot safely continue.' };
+        }
+
+        // Sign up the new user (this will sign you in as them)
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email: email,
+            password: password
+        });
+
+        if (signUpError || signUpData == null || signUpData.user == null) {
+            console.error('Error creating user:', signUpError);
+            return { success: false, error: signUpError?.message || 'Failed to create user account' };
+        }
+
+        // Small delay to ensure the new user session is fully established
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+        // Verify we're authenticated as the new user
+        const currentUser = await supabase.auth.getUser();
+        if (currentUser.data.user?.id !== signUpData.user.id) {
+            console.error('Session mismatch - not authenticated as new user');
+            // Try to restore admin session and return error
+            await supabase.auth.setSession({
+                access_token: originalSession.access_token,
+                refresh_token: originalSession.refresh_token,
+            });
+            return { success: false, error: 'Failed to establish new user session' };
+        }
+
+        // Insert user record while authenticated as the new user (to satisfy RLS policies)
+        const { error: userInsertError, data: insertedUser } = await supabase.from('Users')
+            .insert({
+                id: signUpData.user.id, 
+                user_type: "chair",
+                first_name: first_name,
+                last_name: last_name,
+                email: email,
+                committee_id: committee_id
+            })
+            .select();
+
+        // Now restore the admin session
+        const { error: restoreError } = await supabase.auth.setSession({
+            access_token: originalSession.access_token,
+            refresh_token: originalSession.refresh_token,
+        });
+
+        if (restoreError) {
+            console.error('Failed to restore admin session:', restoreError.message);
+        }
+
+        if (userInsertError) {
+            console.error('Error inserting user:', userInsertError);
+            return { success: false, error: userInsertError.message || 'Failed to create user record' };
+        }
+
+        console.log('Chair created successfully:', insertedUser);
+        
+        // Small delay to ensure user is fully created before sending email
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Get the site URL - use production domain for password reset emails
+        let redirectUrl: string;
+        if (typeof window !== 'undefined') {
+            const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            if (isDevelopment && process.env.NEXT_PUBLIC_SITE_URL) {
+                redirectUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/reset-password`;
+            } else {
+                redirectUrl = 'https://aldous.bmun.org/reset-password';
+            }
+        } else {
+            redirectUrl = process.env.NEXT_PUBLIC_SITE_URL 
+                ? `${process.env.NEXT_PUBLIC_SITE_URL}/reset-password`
+                : 'https://aldous.bmun.org/reset-password';
+        }
+        
+        // Send password reset email
+        const { data: resetData, error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: redirectUrl,
+        });
+
+        if (resetError) {
+            console.error('Error sending reset email:', resetError);
+            return { success: true, error: `User created but failed to send reset email: ${resetError.message}. Check Inbucket at http://localhost:54324 for local emails.` };
+        }
+
+        console.log('Password reset email sent successfully:', resetData);
+        console.log(`Successfully created chair for committee ${committee_id}`);
+        return { success: true };
+    } catch (error: any) {
+        console.error('Unexpected error in signUpChair:', error);
+        return { success: false, error: error?.message || 'An unexpected error occurred' };
+    }
+}
+
 export interface SchoolProps {
     id: number,
     name: string,
@@ -357,6 +465,7 @@ export async function getSupabaseUser() {
 }
 
 export interface CommitteeProps {
+    id?: number,
     name: string,
     full_name: string,
     delegation_size: number,
@@ -522,6 +631,59 @@ export async function getCommittees() {
     }
 
     return data;
+}
+
+export async function getChairByCommitteeId(committee_id: number) {
+    const {data, error} = await supabase.from('Users')
+        .select('email, first_name, last_name')
+        .eq('user_type', 'chair')
+        .eq('committee_id', committee_id)
+        .maybeSingle();
+
+    if (error) {
+        console.error(error);
+        return null;
+    }
+
+    console.log(data);
+
+    return data;
+}
+
+export async function getChairsByCommitteeIds(committee_ids: number[]): Promise<Record<number, string>> {
+    if (committee_ids.length === 0) {
+        return {};
+    }
+
+    try {
+        // Query committees individually to avoid PostgreSQL stack depth issues
+        // This is slower but more reliable
+        const chairMap: Record<number, string> = {};
+        
+        // Process in batches of 5 to balance performance and stack depth
+        const batchSize = 5;
+        for (let i = 0; i < committee_ids.length; i += batchSize) {
+            const batch = committee_ids.slice(i, i + batchSize);
+            
+            // Query each committee individually to avoid stack depth
+            for (const committeeId of batch) {
+                const {data, error} = await supabase.from('Users')
+                    .select('email')
+                    .eq('user_type', 'chair')
+                    .eq('committee_id', committeeId)
+                    .maybeSingle();
+
+                if (!error && data && data.email) {
+                    chairMap[committeeId] = data.email;
+                }
+            }
+        }
+
+        return chairMap;
+    } catch (err) {
+        console.error('Unexpected error in getChairsByCommitteeIds:', err);
+        return {};
+    }
 }
 
 export interface ConferenceProps {
