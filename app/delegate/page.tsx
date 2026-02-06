@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { logoutUser, getSupabaseUser, getAssignmentForCurrentDelegate, DelegateAssignmentInfo } from "../utils/supabaseHelpers";
+import { WAIVER_URL } from "../utils/generalHelper";
 import ProfileTab from "./tabs/ProfileTab";
 import PositionPaperTab from "./tabs/PositionPaperTab";
 
@@ -143,6 +144,34 @@ function DelegateView() {
                                 onClick={() => setActiveTab("paper")}
                             >
                                 Paper
+                            </button>
+                            <button
+                                className="tab text-xs sm:text-sm md:text-base inline-flex items-center gap-1"
+                                style={{ fontFamily: "var(--font-roboto)" }}
+                                onClick={() => {
+                                    window.open(WAIVER_URL, "_blank", "noopener,noreferrer");
+                                }}
+                            >
+                                Waiver
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    aria-hidden="true"
+                                    focusable="false"
+                                    className="inline-block"
+                                >
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                                    <path d="M15 3h6v6" />
+                                    <path d="M10 14L21 3" />
+                                </svg>
+                                <span className="sr-only">(opens in a new tab)</span>
                             </button>
                             <button
                                 className="tab text-xs sm:text-sm md:text-base inline-flex items-center gap-1"

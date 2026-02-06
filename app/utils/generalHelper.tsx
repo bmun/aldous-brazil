@@ -151,6 +151,8 @@ export const SINGLE_COMMITTEE: string[] = [
     "JCC: USA"
 ];
 
+export const WAIVER_URL = "https://waiver.smartwaiver.com/w/xzv2c18nnojoufyp4gssaz/web/";
+
 export const UN_COUNTRIES: string[] = [
   "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda",
   "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan", "Bahamas",

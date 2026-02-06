@@ -30,6 +30,7 @@ function DelegateSubmission({countryName,
     const remainingCount = maxDelegates - currentCount;
     
     // DEBUG: Log delegate IDs to track updates
+    /*
     useEffect(() => {
         console.log(`Modal - delegateIds updated:`, {
             assignmentId,
@@ -40,7 +41,8 @@ function DelegateSubmission({countryName,
             delegateIds: delegateIds
         });
     }, [delegateIds, assignmentId, committeeName, currentCount, remainingCount, maxDelegates]);
-    
+    */
+   
     // Form fields for the next delegate to create
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
