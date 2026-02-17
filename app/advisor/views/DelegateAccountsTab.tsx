@@ -63,9 +63,10 @@ export default function DelegateAccountsTab(props: DelegateAccountsTabProps = {}
         setLoading(false);
     };
 
+    const refreshDeps = refreshKey ?? 0;
     useEffect(() => {
         load();
-    }, [refreshKey ?? 0]);
+    }, [refreshDeps]);
 
     const assignmentLabel = (assignmentId: number | null) => {
         if (assignmentId == null || !assignments?.length) return "—";

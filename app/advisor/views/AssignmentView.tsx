@@ -25,7 +25,7 @@ function sortAssignments(
     sortDir: "asc" | "desc"
 ): AssignmentProps[] {
     if (!sortBy) return assignments;
-    const maxDelegates = (a: AssignmentProps) => (SINGLE_COMMITTEE.includes(a.committee_name) ? 1 : 2);
+    const _maxDelegates = (a: AssignmentProps) => (SINGLE_COMMITTEE.includes(a.committee_name) ? 1 : 2);
     const delegateCount = (a: AssignmentProps) => a.delegate_ids?.length ?? 0;
     const mult = sortDir === "asc" ? 1 : -1;
 
@@ -307,7 +307,7 @@ function AssignmentView({ forceTab }: AssignmentViewProps = {}) {
                                                     <td>
                                                         <div className="flex flex-row flex-wrap items-center gap-2 justify-center">
                                                             <select
-                                                                className="select select-bordered select-sm min-w-0 flex-1 max-w-[12rem]"
+                                                                className="select select-bordered select-sm min-w-0 flex-1 max-w-[12rem] focus:outline focus:outline-2 focus:outline-blue-500 focus:border-blue-500"
                                                                 value={selectedEmail}
                                                                 disabled={assignment.rejected || full || isAssigning}
                                                                 onChange={(e) => {
