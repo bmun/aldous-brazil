@@ -194,6 +194,100 @@ export async function signUpDelegate(first_name: string, last_name: string, emai
     }
 }
 
+/** Maximum delegate accounts per school. */
+export const MAX_DELEGATES_PER_SCHOOL = 50;
+
+/**
+ * Create a delegate account (no assignment). Sends password reset email.
+ * Fails if school already has MAX_DELEGATES_PER_SCHOOL delegates.
+ */
+export async function createDelegateAccount(
+    first_name: string,
+    last_name: string,
+    email: string
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        const advisor = await getSupabaseUser();
+        if (!advisor || advisor.user_type !== "advisor" || !advisor.school_id) {
+            return { success: false, error: "Not authorized" };
+        }
+        const advisorSchoolId = advisor.school_id;
+
+        const existing = await getDelegatesAsAdvisor();
+        if (existing.length >= MAX_DELEGATES_PER_SCHOOL) {
+            return { success: false, error: `Maximum ${MAX_DELEGATES_PER_SCHOOL} delegates per school. You have ${existing.length}.` };
+        }
+
+        const password = Array.from(crypto.getRandomValues(new Uint8Array(10)))
+            .map(n => "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[n % 62])
+            .join("");
+
+        const originalSession = await supabase.auth.getSession().then(({ data }) => data.session);
+        if (!originalSession) {
+            return { success: false, error: "No session found." };
+        }
+
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email,
+            password,
+        });
+        if (signUpError || !signUpData?.user) {
+            return { success: false, error: signUpError?.message || "Failed to create account" };
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 200));
+        const currentUser = await supabase.auth.getUser();
+        if (currentUser.data.user?.id !== signUpData.user.id) {
+            await supabase.auth.setSession({
+                access_token: originalSession.access_token,
+                refresh_token: originalSession.refresh_token,
+            });
+            return { success: false, error: "Failed to establish new user session" };
+        }
+
+        const { error: userInsertError } = await supabase.from("Users").insert({
+            id: signUpData.user.id,
+            user_type: "delegate",
+            first_name,
+            last_name,
+            email,
+            assignment_id: null,
+            school_id: advisorSchoolId,
+        });
+
+        const { error: restoreError } = await supabase.auth.setSession({
+            access_token: originalSession.access_token,
+            refresh_token: originalSession.refresh_token,
+        });
+        if (restoreError) console.error("Failed to restore advisor session:", restoreError);
+
+        if (userInsertError) {
+            return { success: false, error: userInsertError.message || "Failed to create user record" };
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+        let redirectUrl: string;
+        if (typeof window !== "undefined") {
+            const isDev = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+            redirectUrl = isDev && process.env.NEXT_PUBLIC_SITE_URL
+                ? `${process.env.NEXT_PUBLIC_SITE_URL}/reset-password`
+                : "https://aldous.bmun.org/reset-password";
+        } else {
+            redirectUrl = process.env.NEXT_PUBLIC_SITE_URL
+                ? `${process.env.NEXT_PUBLIC_SITE_URL}/reset-password`
+                : "https://aldous.bmun.org/reset-password";
+        }
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl });
+        if (resetError) {
+            return { success: true, error: `Account created but reset email failed: ${resetError.message}` };
+        }
+        return { success: true };
+    } catch (error: any) {
+        console.error("Unexpected error in createDelegateAccount:", error);
+        return { success: false, error: error?.message || "An unexpected error occurred" };
+    }
+}
+
 export async function signUpChair(
     first_name: string, 
     last_name: string, 
@@ -1022,6 +1116,7 @@ export async function getDelegatesAsAdvisor() {
         .select('*')
         .eq('user_type', 'delegate')
         .eq('school_id', user.school_id);
+    console.log(data);
     
     if (error) {
         // DEBUG: Log database query errors to diagnose fetch issues
@@ -1042,6 +1137,30 @@ export async function getDelegatesAsAdvisor() {
     }
 
     return data || [];
+}
+
+/**
+ * Delegates from the current advisor's school who have no assignment (assignment_id is null).
+ * Used to fill empty slots by assigning an existing delegate instead of creating a new one.
+ */
+export async function getUnassignedDelegatesForAdvisor(): Promise<ChairDelegateInfo[]> {
+    const user = await getSupabaseUser();
+    if (!user || user.user_type !== "advisor" || !user.school_id) return [];
+
+    const { data, error } = await supabase
+        .from("Users")
+        .select("first_name, last_name, email, assignment_id, user_type")
+        .eq("user_type", "delegate")
+        .eq("school_id", user.school_id)
+        .is("assignment_id", null);
+
+    if (error || !data) return [];
+    return data.map((u: any) => ({
+        first_name: u.first_name ?? null,
+        last_name: u.last_name ?? null,
+        email: u.email,
+        assignment_id: null,
+    })) as ChairDelegateInfo[];
 }
 
 export async function getDelegatesByIds(userIds: string[]): Promise<DelegateProps[]> {
@@ -1219,6 +1338,220 @@ export async function addDelegateToAssignment(assignmentId: number, delegateEmai
     }
 }
 
+/**
+ * Remove a delegate from an assignment. Updates Assignment.delegate_ids and sets
+ * the delegate's Users.assignment_id to null so their account reflects no assignment.
+ */
+export async function removeDelegateFromAssignment(
+    assignmentId: number,
+    delegateEmail: string
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        const { data: assignment, error: fetchError } = await supabase
+            .from("Assignment")
+            .select("delegate_ids")
+            .eq("id", assignmentId)
+            .single();
+
+        if (fetchError || !assignment) {
+            return { success: false, error: fetchError?.message || "Assignment not found" };
+        }
+
+        const currentDelegateEmails: string[] = assignment.delegate_ids || [];
+        if (!currentDelegateEmails.includes(delegateEmail)) {
+            return { success: true };
+        }
+
+        const updatedDelegateEmails = currentDelegateEmails.filter((e) => e !== delegateEmail);
+
+        const { error: updateError } = await supabase
+            .from("Assignment")
+            .update({ delegate_ids: updatedDelegateEmails })
+            .eq("id", assignmentId);
+
+        if (updateError) {
+            return { success: false, error: updateError.message || "Failed to update assignment" };
+        }
+
+        const { error: userUpdateError } = await supabase
+            .from("Users")
+            .update({ assignment_id: null })
+            .eq("email", delegateEmail)
+            .eq("user_type", "delegate");
+
+        if (userUpdateError) {
+            console.error("Error clearing delegate assignment_id:", userUpdateError);
+            return { success: false, error: userUpdateError.message || "Failed to update user" };
+        }
+
+        return { success: true };
+    } catch (error: any) {
+        console.error("Unexpected error in removeDelegateFromAssignment:", error);
+        return { success: false, error: error?.message || "An unexpected error occurred" };
+    }
+}
+
+/**
+ * Update a delegate's first and last name in Users. Only affects delegates in the current advisor's school.
+ */
+export async function updateDelegateName(
+    email: string,
+    first_name: string,
+    last_name: string
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        const user = await getSupabaseUser();
+        if (!user || user.user_type !== "advisor" || !user.school_id) {
+            return { success: false, error: "Not authorized" };
+        }
+
+        const { error } = await supabase
+            .from("Users")
+            .update({ first_name, last_name })
+            .eq("email", email)
+            .eq("user_type", "delegate")
+            .eq("school_id", user.school_id);
+
+        if (error) {
+            return { success: false, error: error.message };
+        }
+        return { success: true };
+    } catch (error: any) {
+        console.error("Unexpected error in updateDelegateName:", error);
+        return { success: false, error: error?.message || "An unexpected error occurred" };
+    }
+}
+
+/**
+ * Set a delegate's password (advisor only, same school). Calls the API that uses the service role.
+ */
+export async function setDelegatePasswordAsAdvisor(
+    delegateUserId: string,
+    newPassword: string
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+            return { success: false, error: "Not signed in" };
+        }
+        const res = await fetch("/api/set-delegate-password", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ delegateUserId, newPassword }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            return { success: false, error: (data.error as string) || res.statusText };
+        }
+        return { success: true };
+    } catch (e: any) {
+        return { success: false, error: e?.message || "Request failed" };
+    }
+}
+
+/**
+ * Link an existing delegate (by email) to an assignment. Adds email to assignment's delegate_ids
+ * and sets the user's assignment_id. Delegate must already exist and belong to advisor's school.
+ */
+export async function linkDelegateToAssignment(
+    delegateEmail: string,
+    assignmentId: number
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        const advisor = await getSupabaseUser();
+        if (!advisor || advisor.user_type !== "advisor" || !advisor.school_id) {
+            return { success: false, error: "Not authorized" };
+        }
+
+        const { data: delegateUser, error: fetchUserError } = await supabase
+            .from("Users")
+            .select("id, email, user_type, school_id")
+            .eq("email", delegateEmail)
+            .maybeSingle();
+
+        if (fetchUserError || !delegateUser) {
+            return { success: false, error: "Delegate account not found with that email." };
+        }
+        if (delegateUser.user_type !== "delegate") {
+            return { success: false, error: "That email belongs to a non-delegate account." };
+        }
+        if (delegateUser.school_id !== advisor.school_id) {
+            return { success: false, error: "That delegate is not from your school." };
+        }
+
+        const { data: thisAssignment, error: assignFetchErr } = await supabase
+            .from("Assignment")
+            .select("registration_id, delegate_ids")
+            .eq("id", assignmentId)
+            .single();
+
+        if (assignFetchErr || !thisAssignment) {
+            return { success: false, error: "Assignment not found" };
+        }
+
+        const { data: otherAssignments } = await supabase
+            .from("Assignment")
+            .select("id, delegate_ids")
+            .eq("registration_id", thisAssignment.registration_id);
+
+        for (const a of otherAssignments || []) {
+            if (a.id === assignmentId) continue;
+            const ids: string[] = a.delegate_ids || [];
+            if (!ids.includes(delegateEmail)) continue;
+            const updated = ids.filter((e) => e !== delegateEmail);
+            await supabase
+                .from("Assignment")
+                .update({ delegate_ids: updated })
+                .eq("id", a.id);
+        }
+
+        const addResult = await addDelegateToAssignment(assignmentId, delegateEmail);
+        if (!addResult.success) return addResult;
+
+        const { error: userUpdateError } = await supabase
+            .from("Users")
+            .update({ assignment_id: assignmentId })
+            .eq("email", delegateEmail)
+            .eq("user_type", "delegate");
+
+        if (userUpdateError) {
+            return { success: false, error: userUpdateError.message || "Failed to link delegate to assignment" };
+        }
+        return { success: true };
+    } catch (error: any) {
+        console.error("Unexpected error in linkDelegateToAssignment:", error);
+        return { success: false, error: error?.message || "An unexpected error occurred" };
+    }
+}
+
+/**
+ * Get delegate by email if they exist and belong to the current advisor's school. Used to check
+ * whether an email is an existing delegate before linking to an assignment.
+ */
+export async function getDelegateByEmail(email: string): Promise<ChairDelegateInfo | null> {
+    const user = await getSupabaseUser();
+    if (!user || user.user_type !== "advisor" || !user.school_id) return null;
+
+    const { data, error } = await supabase
+        .from("Users")
+        .select("first_name, last_name, email, assignment_id, user_type")
+        .eq("email", email)
+        .eq("user_type", "delegate")
+        .eq("school_id", user.school_id)
+        .maybeSingle();
+
+    if (error || !data) return null;
+    return {
+        first_name: data.first_name ?? null,
+        last_name: data.last_name ?? null,
+        email: data.email,
+        assignment_id: data.assignment_id ?? null,
+    } as ChairDelegateInfo;
+}
+
 export async function getAmountRegistered() {
     const { data, error } = await supabase.rpc('get_delegate_total_count');
 
@@ -1341,6 +1674,34 @@ export async function sendPasswordResetEmail(email: string): Promise<{ success: 
     } catch (error: any) {
         console.error('Unexpected error in sendPasswordResetEmail:', error);
         return { success: false, error: error?.message || 'An unexpected error occurred' };
+    }
+}
+
+/**
+ * Send a magic link (sign-in link) to the given email. The user can click the link to sign in.
+ * Can be called by an advisor to send a login link to a delegate.
+ */
+export async function sendMagicLinkToEmail(email: string): Promise<{ success: boolean; error?: string }> {
+    try {
+        let redirectUrl: string;
+        if (typeof window !== "undefined") {
+            const isDev = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+            redirectUrl = isDev && process.env.NEXT_PUBLIC_SITE_URL
+                ? `${process.env.NEXT_PUBLIC_SITE_URL}/delegate`
+                : "https://aldous.bmun.org/delegate";
+        } else {
+            redirectUrl = process.env.NEXT_PUBLIC_SITE_URL
+                ? `${process.env.NEXT_PUBLIC_SITE_URL}/delegate`
+                : "https://aldous.bmun.org/delegate";
+        }
+        const { error } = await supabase.auth.signInWithOtp({
+            email,
+            options: { emailRedirectTo: redirectUrl },
+        });
+        if (error) return { success: false, error: error.message };
+        return { success: true };
+    } catch (e: any) {
+        return { success: false, error: e?.message || "Failed to send magic link" };
     }
 }
 

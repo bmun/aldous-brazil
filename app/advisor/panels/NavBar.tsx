@@ -38,6 +38,7 @@ function NavBar({setPageNum}: NavBarProps) {
                             className="menu menu-xl dropdown-content text-white bg-black rounded-box z-1 mt-3 w-52 p-2 shadow">
                             <li onClick={() => setPageNum(0)}><a>Registration</a></li>
                             <li onClick={() => setPageNum(2)}><a>Assignments</a></li>
+                            <li onClick={() => setPageNum(4)}><a>Delegate accounts</a></li>
                             <li onClick={() => setPageNum(3)}><a>Website Guide</a></li>
                             <li>
                                 <a
@@ -112,6 +113,14 @@ function NavBar({setPageNum}: NavBarProps) {
                                 behavior: 'smooth'
                             });
                             }}><a>Assignments</a></li>
+                        <li onClick={() => {
+                            setPageNum(4); 
+                            window.scrollTo({
+                                top: 0,
+                                left: 0,
+                                behavior: 'smooth'
+                            });
+                            }}><a>Delegate accounts</a></li>
                         <li onClick={() => {
                             setPageNum(3); 
                             window.scrollTo({

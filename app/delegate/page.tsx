@@ -125,6 +125,7 @@ function DelegateView() {
                             <Image src="/BMUN Logo Blue.png" alt="BMUN Logo" width={140} height={32} />
                         </button>
                     </div>
+                    {assignment != null && (
                     <div className="navbar-center">
                         <div className="tabs tabs-boxed bg-base-200">
                             <button
@@ -206,6 +207,7 @@ function DelegateView() {
                             </button>
                         </div>
                     </div>
+                    )}
                     <div className="navbar-end gap-2">
                         <button
                             className="btn btn-ghost btn-sm md:btn-md"
@@ -222,7 +224,7 @@ function DelegateView() {
             {/* Page Content */}
             <main className="pt-24 pb-10 w-full h-full flex flex-row justify-center items-start">
                 <div className="w-full max-w-12/12 sm:max-w-[1400px] lg:w-10/12 lg:h-10/12 rounded-md sm:p-4">
-                    { loadingUser || assignment == null || delegate == null ? (
+                    { loadingUser || delegate == null ? (
                         <div className="flex flex-col gap-6 w-full">
                             {/* Welcome card skeleton */}
                             <div className="card bg-base-100 shadow-xl border border-base-300">
@@ -247,6 +249,16 @@ function DelegateView() {
                                             </li>
                                         ))}
                                     </ul>
+                                </div>
+                            </div>
+                        </div>
+                    ) : assignment == null ? (
+                        <div className="w-full flex flex-col justify-center items-center min-h-[50vh]">
+                            <div className="card bg-base-100 shadow-xl border border-base-300 text-center">
+                                <div className="card-body items-center text-center">
+                                    <p className="text-lg md:text-xl">
+                                        Unassigned Delegate Account.
+                                    </p>
                                 </div>
                             </div>
                         </div>

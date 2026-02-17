@@ -27,7 +27,10 @@ function AdvisorView() {
                         <RegistrationView setPageNum={setPageNum} />
                     </div>
                     <div className={`h-full ${pageNum != 2 ? 'hidden' : ''}`}>
-                        <AssignmentView />
+                        <AssignmentView forceTab="assignments" />
+                    </div>
+                    <div className={`h-full ${pageNum != 4 ? 'hidden' : ''}`}>
+                        <AssignmentView forceTab="delegates" />
                     </div>
                     <div className={pageNum != 3 ? 'hidden' : ''}>
                         <GuideView />
