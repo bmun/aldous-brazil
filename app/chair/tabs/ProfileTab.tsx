@@ -13,8 +13,6 @@ import {
     updateRubric,
     updateCommitteeRubricId,
 } from "@/app/utils/supabaseHelpers";
-import { SINGLE_COMMITTEE } from "@/app/utils/generalHelper";
-
 const COLOR_OPTIONS: { label: string; value: string }[] = [
     { label: "Blue", value: "#1D4ED8" },
     { label: "Sky", value: "#0EA5E9" },
@@ -44,7 +42,6 @@ interface PaperStats {
 }
 
 function ProfileTab({ chair: _chair, committeeName, committeeShortName, assignments }: ProfileTabProps) {
-    const isSpecialCommittee = committeeShortName ? SINGLE_COMMITTEE.includes(committeeShortName) : false;
     const [paperStats, setPaperStats] = useState<PaperStats>({
         total: 0,
         ungraded: 0,
@@ -132,14 +129,14 @@ function ProfileTab({ chair: _chair, committeeName, committeeShortName, assignme
                             ...rubricData,
                             topic_one: topicOne.slice(0, 5),
                             topic_two: topicTwo.slice(0, 5),
-                            use_topic_2: !isSpecialCommittee, // Always sync with committee special status
+                            use_topic_2: rubricData.use_topic_2 ?? false,
                         });
                     } else {
                         // Initialize empty rubric if not found
                         setRubric({
                             topic_one: Array(5).fill(null).map(() => ({ name: '', value: 0 })),
                             topic_two: Array(5).fill(null).map(() => ({ name: '', value: 0 })),
-                            use_topic_2: !isSpecialCommittee,
+                            use_topic_2: false,
                         });
                     }
                 } else {
@@ -147,7 +144,7 @@ function ProfileTab({ chair: _chair, committeeName, committeeShortName, assignme
                     setRubric({
                         topic_one: Array(5).fill(null).map(() => ({ name: '', value: 0 })),
                         topic_two: Array(5).fill(null).map(() => ({ name: '', value: 0 })),
-                        use_topic_2: !isSpecialCommittee,
+                        use_topic_2: false,
                     });
                 }
             } catch (e) {
@@ -157,7 +154,7 @@ function ProfileTab({ chair: _chair, committeeName, committeeShortName, assignme
             setLoadingChairs(false);
             setLoadingRubric(false);
         })();
-    }, [isSpecialCommittee]);
+    }, []);
 
     function updateChairName(index: number, name: string) {
         setChairs(prev => prev.map((c, i) => (i === index ? { ...c, name } : c)));
@@ -218,12 +215,7 @@ function ProfileTab({ chair: _chair, committeeName, committeeShortName, assignme
         setRubricFeedback(null);
 
         try {
-            // Always set use_topic_2 based on whether committee is special
-            // If committee is in SINGLE_COMMITTEE list, use_topic_2 should be false
-            const rubricToSave = {
-                ...rubric,
-                use_topic_2: !isSpecialCommittee,
-            };
+            const rubricToSave = { ...rubric };
 
             let rubricId = committee.rubric_id;
 
@@ -418,9 +410,20 @@ function ProfileTab({ chair: _chair, committeeName, committeeShortName, assignme
                                     ))}
                                 </div>
 
-                                {/* Topic 2 */}
-                                <div className={`space-y-4 ${isSpecialCommittee ? 'opacity-50' : ''}`}>
-                                    <p className="text-xl font-semibold" style={{ fontFamily: "var(--font-roboto)" }}>Topic 2</p>
+                                {/* Topic 2 - all committees can enable via toggle */}
+                                <div className={`space-y-4 ${!rubric.use_topic_2 ? 'opacity-50' : ''}`}>
+                                    <div className="flex flex-row flex-wrap items-center gap-3">
+                                        <p className="text-xl font-semibold" style={{ fontFamily: "var(--font-roboto)" }}>Topic 2</p>
+                                        <label className="label cursor-pointer gap-2">
+                                            <span className="label-text">Enable Topic 2</span>
+                                            <input
+                                                type="checkbox"
+                                                className="toggle toggle-primary"
+                                                checked={rubric.use_topic_2}
+                                                onChange={(e) => setRubric(rubric ? { ...rubric, use_topic_2: e.target.checked } : rubric)}
+                                            />
+                                        </label>
+                                    </div>
                                     {rubric.topic_two.map((item, index) => (
                                         <div key={index} className="flex flex-row gap-3 items-center">
                                             <input
@@ -429,7 +432,7 @@ function ProfileTab({ chair: _chair, committeeName, committeeShortName, assignme
                                                 placeholder={`Section ${index + 1} name`}
                                                 value={item.name}
                                                 onChange={(e) => updateRubricItem('topic_two', index, 'name', e.target.value)}
-                                                disabled={isSpecialCommittee}
+                                                disabled={!rubric.use_topic_2}
                                             />
                                             <input
                                                 type="number"
@@ -438,7 +441,7 @@ function ProfileTab({ chair: _chair, committeeName, committeeShortName, assignme
                                                 placeholder="Max"
                                                 value={item.value || ''}
                                                 onChange={(e) => updateRubricItem('topic_two', index, 'value', parseInt(e.target.value) || 0)}
-                                                disabled={isSpecialCommittee}
+                                                disabled={!rubric.use_topic_2}
                                             />
                                         </div>
                                     ))}

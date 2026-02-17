@@ -12,7 +12,6 @@ import {
     getCommitteeForCurrentChair,
 } from "@/app/utils/supabaseHelpers";
 import GradingModal from "../modals/GradingModal";
-import { SINGLE_COMMITTEE } from "@/app/utils/generalHelper";
 
 interface PapersTabProps {
     committeeName?: string;
@@ -40,7 +39,6 @@ type SortDirection = 'asc' | 'desc';
 type FilterType = number | 'unassigned' | 'none' | null;
 
 function PapersTab({ committeeName: _committeeName, committeeShortName, delegates, assignments, committee: committeeProp }: PapersTabProps) {
-    const isSpecialCommittee = committeeShortName ? SINGLE_COMMITTEE.includes(committeeShortName) : false;
     const [_loading, setLoading] = useState(true);
     const [rows, setRows] = useState<PaperRow[]>([]);
     const [sortField, setSortField] = useState<SortField>('country');
@@ -183,8 +181,8 @@ function PapersTab({ committeeName: _committeeName, committeeShortName, delegate
             }
         });
 
-        // Sum Topic 2 scores for valid sections (only if use_topic_2 is true and not special committee)
-        if (rubric.use_topic_2 && !isSpecialCommittee) {
+        // Sum Topic 2 scores for valid sections (only if use_topic_2 is true)
+        if (rubric.use_topic_2) {
             rubric.topic_two.forEach((item, index) => {
                 const maxValue = item?.value || 0;
                 const hasName = item?.name && item.name.trim() !== "";

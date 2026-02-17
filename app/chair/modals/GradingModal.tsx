@@ -13,7 +13,6 @@ import {
     getCommitteeForCurrentChair,
 } from "@/app/utils/supabaseHelpers";
 import { supabase } from "@/supabaseClient";
-import { SINGLE_COMMITTEE } from "@/app/utils/generalHelper";
 
 interface GradingModalProps {
     paperId: number | null;
@@ -30,9 +29,8 @@ function GradingModal({
     isOpen,
     setIsOpen,
     onGraded,
-    committeeShortName,
+    committeeShortName: _committeeShortName,
 }: GradingModalProps) {
-    const isSpecialCommittee = committeeShortName ? SINGLE_COMMITTEE.includes(committeeShortName) : false;
     const [paper, setPaper] = useState<PositionPaper | null>(null);
     const [loading, setLoading] = useState(false);
     const [downloading, setDownloading] = useState<'original' | 'graded' | null>(null);
@@ -171,8 +169,8 @@ function GradingModal({
                 }
             }
 
-            // Prepare scores - if special committee, set topic 2 scores to 0
-            const scoresToUpdate = isSpecialCommittee
+            // If rubric has topic 2 disabled, do not save topic 2 scores (keep 0)
+            const scoresToUpdate = !rubric?.use_topic_2
                 ? {
                       ...scores,
                       score_t2_1: 0,
@@ -344,13 +342,13 @@ function GradingModal({
                                 </div>
 
                                 {/* Topic 2 Scores */}
-                                <div className={`space-y-4 ${!rubric?.use_topic_2 || isSpecialCommittee ? 'opacity-50' : ''}`}>
+                                <div className={`space-y-4 ${!rubric?.use_topic_2 ? 'opacity-50' : ''}`}>
                                     <p className="text-xl font-semibold">Topic 2 Scores</p>
                                     {[1, 2, 3, 4, 5].map((num) => {
                                         const rubricItem = rubric?.topic_two[num - 1];
                                         const maxValue = rubricItem?.value || 0;
                                         const sectionName = rubricItem?.name || `Score ${num}`;
-                                        const isDisabled = isSpecialCommittee || !rubric?.use_topic_2 || maxValue === 0 || !rubricItem?.name || rubricItem.name.trim() === "";
+                                        const isDisabled = !rubric?.use_topic_2 || maxValue === 0 || !rubricItem?.name || rubricItem.name.trim() === "";
                                         const displayMax = maxValue === 0 ? "-" : maxValue;
                                         
                                         return (
