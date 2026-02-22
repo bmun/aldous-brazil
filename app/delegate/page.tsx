@@ -13,6 +13,7 @@ type ActiveTab = "profile" | "paper";
 export interface DelegateUser {
     first_name?: string;
     last_name?: string;
+    waiver_submitted?: boolean;
 }
 
 function DelegateView() {
@@ -53,6 +54,7 @@ function DelegateView() {
             setDelegate({
                 first_name: user.first_name,
                 last_name: user.last_name,
+                waiver_submitted: user.waiver_submitted ?? false,
             });
 
             const assignmentInfo = await getAssignmentForCurrentDelegate();

@@ -11,6 +11,7 @@ type DelegateRow = {
     last_name: string | null;
     email: string;
     assignment_id: number | null;
+    waiver_submitted?: boolean;
 };
 
 interface DelegateAccountsTabProps {
@@ -57,6 +58,7 @@ export default function DelegateAccountsTab(props: DelegateAccountsTabProps = {}
                 last_name: d.last_name ?? null,
                 email: d.email,
                 assignment_id: d.assignment_id ?? null,
+                waiver_submitted: d.waiver_submitted ?? false,
             }))
         );
         setAssignments(assignList || []);
@@ -166,6 +168,7 @@ export default function DelegateAccountsTab(props: DelegateAccountsTabProps = {}
                                 <th>Last name</th>
                                 <th>Email</th>
                                 <th>Assignment</th>
+                                <th>Waiver Submitted</th>
                                 <th>Edit</th>
                                 <th>Account Recovery</th>
                             </tr>
@@ -173,7 +176,7 @@ export default function DelegateAccountsTab(props: DelegateAccountsTabProps = {}
                         <tbody>
                             {delegates.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="text-center text-base-content/70">
+                                    <td colSpan={7} className="text-center text-base-content/70">
                                         No delegate accounts yet. Create one above.
                                     </td>
                                 </tr>
@@ -211,6 +214,13 @@ export default function DelegateAccountsTab(props: DelegateAccountsTabProps = {}
                                         <td>{d.email}</td>
                                         <td className="max-w-xs truncate" title={assignmentLabel(d.assignment_id)}>
                                             {assignmentLabel(d.assignment_id)}
+                                        </td>
+                                        <td>
+                                            {d.waiver_submitted ? (
+                                                <span className="badge badge-success">Submitted</span>
+                                            ) : (
+                                                <span className="badge badge-warning">Not Submitted</span>
+                                            )}
                                         </td>
                                         <td>
                                             {editingEmail === d.email ? (

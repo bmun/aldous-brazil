@@ -82,7 +82,7 @@ function ProfileTab({delegate, assignment}: ProfileTabProps) {
                         <input
                             type="checkbox"
                             className="checkbox checkbox-primary mt-1"
-                            checked={false}
+                            checked={delegate?.waiver_submitted ?? false}
                         />
                         <div className="flex flex-col gap-1">
                             <p className="font-medium text-base md:text-lg">Waiver submitted</p>

@@ -482,8 +482,8 @@ function PapersTab({ committeeName: _committeeName, committeeShortName, delegate
                                         <td className="px-4 py-2 whitespace-nowrap">
                                             {row.delegate_name}
                                         </td>
-                                        <td className="px-4 py-2">
-                                            <span className="text-sm md:text-base break-all">{row.email}</span>
+                                        <td className="px-4 py-2 whitespace-nowrap">
+                                            <span className="text-sm md:text-base">{row.email}</span>
                                         </td>
                                         <td className="px-4 py-2">
                                             {row.submitted_at}
@@ -501,10 +501,10 @@ function PapersTab({ committeeName: _committeeName, committeeShortName, delegate
                                                     );
                                                 })()
                                             ) : (
-                                                <span className="badge badge-warning">Not graded</span>
+                                                <span className="badge badge-warning whitespace-nowrap">Not graded</span>
                                             )}
                                         </td>
-                                        <td className="px-4 py-2">
+                                        <td className="px-4 py-2 whitespace-nowrap">
                                             <div className="w-full max-w-xs">
                                                 <select
                                                     className="select select-bordered w-full text-sm font-semibold py-2"

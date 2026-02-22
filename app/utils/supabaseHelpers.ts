@@ -1264,6 +1264,89 @@ export async function uploadAssignments(newAssignments: AssignmentUploadProps[])
     }
 }
 
+export interface WaiverUploadRow {
+    waiverId: string;
+    templateId: string;
+    title: string;
+    prefillId: string;
+    createdOn: string;
+    expirationDate: string;
+    expired: string;
+    verified: string;
+    kiosk: string;
+    firstName: string;
+    middleName: string;
+    lastName: string;
+    dob: string;
+    isMinor: string;
+    autoTag: string;
+    tags: string;
+    flags: string;
+    keyValues: string;
+}
+
+export async function uploadWaiverCSV(rows: WaiverUploadRow[]): Promise<{ matched: number; skipped: number; ambiguous: number; notFound: number }> {
+    const stats = { matched: 0, skipped: 0, ambiguous: 0, notFound: 0 };
+    const notFoundWaivers: { firstName: string; lastName: string; waiverId?: string }[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const processed = i + 1;
+        if (processed % 50 === 0) {
+            console.log(`Waiver CSV: ${processed} lines processed`);
+        }
+        if (row.verified?.toLowerCase() !== "true") {
+            stats.skipped++;
+            continue;
+        }
+
+        const firstName = (row.firstName ?? "").trim();
+        const lastName = (row.lastName ?? "").trim();
+        if (!firstName || !lastName) {
+            stats.skipped++;
+            continue;
+        }
+
+        const { data: users, error } = await supabase
+            .from("Users")
+            .select("id")
+            .ilike("first_name", firstName)
+            .ilike("last_name", lastName);
+
+        if (error) {
+            console.error("Error looking up user:", error);
+            stats.skipped++;
+            continue;
+        }
+
+        const count = users?.length ?? 0;
+        if (count === 0) {
+            stats.notFound++;
+            notFoundWaivers.push({ firstName, lastName, waiverId: row.waiverId || undefined });
+        } else if (count > 1) {
+            stats.ambiguous++;
+        } else {
+            const { error: updateError } = await supabase
+                .from("Users")
+                .update({ waiver_submitted: true })
+                .eq("id", users![0].id);
+
+            if (updateError) {
+                console.error("Error updating waiver_submitted:", updateError);
+                stats.skipped++;
+            } else {
+                stats.matched++;
+            }
+        }
+    }
+
+    if (notFoundWaivers.length > 0) {
+        console.log("Valid waivers with no matching user account:", notFoundWaivers);
+    }
+
+    return stats;
+}
+
 export async function loadAssignments() {
     const registration = await getRegistration();
 

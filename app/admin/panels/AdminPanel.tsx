@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import CommitteeModal from "../modals/CommitteeModal";
-import { CommitteeProps, getCommittees, ConferenceProps, uploadAssignments, AssignmentUploadProps, signUpChair, getChairsByCommitteeIds } from "../../utils/supabaseHelpers";
+import { CommitteeProps, getCommittees, ConferenceProps, uploadAssignments, AssignmentUploadProps, signUpChair, getChairsByCommitteeIds, uploadWaiverCSV, WaiverUploadRow } from "../../utils/supabaseHelpers";
 import ConferenceModal from "../modals/ConferenceModal";
 import { defaultConferenceData } from "@/app/utils/generalHelper";
 
@@ -15,6 +15,9 @@ function AdminPanel() {
     const [formData, setFormData] = useState<ConferenceProps>(defaultConferenceData)
 
     const [assignments, setAssignments] = useState<AssignmentUploadProps[]>([]);
+
+    const [waiverUploadResult, setWaiverUploadResult] = useState<{ matched: number; skipped: number; ambiguous: number; notFound: number } | null>(null);
+    const [waiverUploading, setWaiverUploading] = useState(false);
 
     const [chairEmails, setChairEmails] = useState<Record<number, string>>({});
     const [existingChairEmails, setExistingChairEmails] = useState<Record<number, string>>({});
@@ -44,7 +47,8 @@ function AdminPanel() {
         }
     })()}, [])
 
-    const inputRef = useRef<HTMLInputElement>(null)
+    const inputRef = useRef<HTMLInputElement>(null);
+    const waiverInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -79,6 +83,67 @@ function AdminPanel() {
     const handleAssignmentSubmission = async () => {
         await uploadAssignments(assignments);
     }
+
+    const getCsvValue = (obj: Record<string, string>, ...keys: string[]): string => {
+        const normalized = (k: string) => k.toLowerCase().replace(/[\s_-]/g, "");
+        const targetKeys = new Set(keys.map(k => normalized(k)));
+        for (const [k, v] of Object.entries(obj)) {
+            if (targetKeys.has(normalized(k))) return v ?? "";
+        }
+        return "";
+    };
+
+    const handleWaiverFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || (!file.name.endsWith(".csv") && !file.name.endsWith(".tsv"))) return;
+
+        const text = await file.text();
+        const isTab = file.name.endsWith(".tsv") || text.includes("\t");
+        const delimiter = isTab ? "\t" : ",";
+        const lines = text.trim().split(/\r?\n/);
+        const headers = lines[0].split(delimiter).map(h => h.trim());
+
+        const rows: WaiverUploadRow[] = lines.slice(1).map(line => {
+            const values = line.split(delimiter).map(v => v.trim());
+            const obj: Record<string, string> = {};
+            headers.forEach((key, i) => {
+                obj[key] = values[i] ?? "";
+            });
+            return {
+                waiverId: getCsvValue(obj, "waiverId", "waiver_id"),
+                templateId: getCsvValue(obj, "templateId", "template_id"),
+                title: getCsvValue(obj, "title"),
+                prefillId: getCsvValue(obj, "prefillId", "prefill_id"),
+                createdOn: getCsvValue(obj, "createdOn", "created_on"),
+                expirationDate: getCsvValue(obj, "expirationDate", "expiration_date"),
+                expired: getCsvValue(obj, "expired"),
+                verified: getCsvValue(obj, "verified"),
+                kiosk: getCsvValue(obj, "kiosk"),
+                firstName: getCsvValue(obj, "firstName", "first_name", "First Name"),
+                middleName: getCsvValue(obj, "middleName", "middle_name", "Middle Name"),
+                lastName: getCsvValue(obj, "lastName", "last_name", "Last Name"),
+                dob: getCsvValue(obj, "dob"),
+                isMinor: getCsvValue(obj, "isMinor", "is_minor"),
+                autoTag: getCsvValue(obj, "autoTag", "auto_tag"),
+                tags: getCsvValue(obj, "tags"),
+                flags: getCsvValue(obj, "flags"),
+                keyValues: getCsvValue(obj, "key-values", "keyValues", "key_values"),
+            };
+        });
+
+        setWaiverUploadResult(null);
+        setWaiverUploading(true);
+        try {
+            const result = await uploadWaiverCSV(rows);
+            setWaiverUploadResult(result);
+            if (waiverInputRef.current) waiverInputRef.current.value = "";
+        } catch (err) {
+            console.error("Waiver upload error:", err);
+            alert("Failed to upload waivers. Check the console for details.");
+        } finally {
+            setWaiverUploading(false);
+        }
+    };
 
     const handleCreateChairAccount = async (committee: CommitteeProps) => {
         if (!committee.id) {
@@ -155,6 +220,28 @@ function AdminPanel() {
                                     Upload Assignments
                                 </button>
                             </div>
+                        </div>
+                        <div>
+                            <h5 className="text-3xl text-primary">Upload Waivers</h5>
+                            <p>
+                                Upload a CSV or TSV exported from the waiver system with columns: waiverId, templateId, title, prefillId, createdOn, expirationDate, expired, verified, kiosk, firstName, middleName, lastName, dob, isMinor, autoTag, tags, flags, key-values. Rows with verified=&quot;True&quot; are matched to Users by firstName and lastName. Only uniquely matched users are marked as waiver_submitted.
+                            </p>
+                            <div className="flex flex-row gap-2 items-end">
+                                <input
+                                    type="file"
+                                    accept=".csv,.tsv"
+                                    ref={waiverInputRef}
+                                    className="file-input file-input-secondary mt-2"
+                                    onChange={handleWaiverFileChange}
+                                    disabled={waiverUploading}
+                                />
+                                {waiverUploading && <span className="loading loading-spinner" />}
+                            </div>
+                            {waiverUploadResult != null && (
+                                <div className="mt-2 text-sm">
+                                    Matched: {waiverUploadResult.matched} | Skipped: {waiverUploadResult.skipped} | Ambiguous (multiple users): {waiverUploadResult.ambiguous} | Not found: {waiverUploadResult.notFound}
+                                </div>
+                            )}
                         </div>
                         <div>
                             <h5 className="text-3xl text-primary">Create Committees</h5>
