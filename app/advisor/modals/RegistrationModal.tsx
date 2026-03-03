@@ -65,7 +65,6 @@ function RegistrationForm ({creatingRegistration, setCreatingRegistration, waitl
     // Currently we have no foreign language committees. Update this as needed.
     // const [numSpanish, setNumSpanish] = useState(0);
     // const [numChinese, setNumChinese] = useState(0);
-    const [onlinePayment, setOnlinePayment] = useState(false);
 
     async function handleSubmission () {
         setLoading(true);
