@@ -108,35 +108,28 @@ function SchoolForm({school, setSchool, submissionError}: SchoolFormProps) {
                 </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
-                {/*<div className="flex flex-col">
-                    <label className="label text-lg">
-                        {school.international ? "Postal Code" : "Zip Code"}
-                    </label>
-                    <input 
-                        type="text" 
-                        className={`input input-lg w-full ${submissionError && school.zip_code.length == 0 ? "input-error" : ""}`}
-                        placeholder={school.international ? "Postal Code" : "Zip Code"}
-                        value={school.zip_code}
-                        onChange={(e) => setSchool(
-                            {...school, zip_code:e.target.value}
-                        )} />
-                </div>*/}
-                {/*<div className="flex flex-col w-full">
+                <div className="flex flex-col w-full col-span-2">
                     <label className="label text-lg">
                         Delegation Type
                     </label>
-                    <select 
-                        defaultValue="Delegation Type" 
-                        className="select select-lg w-full"
-                        onChange={(e) => setSchool(
-                            {...school, delegation_type:e.target.value}
-                        )}>
-                        <option disabled={true}>Delegation Type</option>
-                        <option>Class</option>
-                        <option>Club</option>
-                        <option>Individual</option>
+                    <select
+                        className={`select select-lg w-full ${submissionError && (school.delegation_type === "" || school.delegation_type === "Delegation Type") ? "select-error" : ""}`}
+                        value={school.delegation_type}
+                        onChange={(e) =>
+                            setSchool({
+                                ...school,
+                                delegation_type: e.target.value,
+                            })
+                        }
+                    >
+                        <option disabled value="Delegation Type">
+                            Delegation Type
+                        </option>
+                        <option value="Individual">Individual</option>
+                        <option value="Class">Class</option>
+                        <option value="Club">Club</option>
                     </select>
-                </div>*/}
+                </div>
                 {/*<div className="flex flex-col w-full">
                     <label className="label text-lg">
                         Number of Times Attended

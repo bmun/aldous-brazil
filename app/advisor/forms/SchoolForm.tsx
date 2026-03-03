@@ -130,6 +130,21 @@ function SchoolForm({setSchoolLoading}: SchoolFormProps) {
                         />
                     </div>
                 </div>
+                <div className="flex flex-col mt-4 w-full">
+                    <label className="label text-lg">Delegation Type</label>
+                    <select
+                        className="select select-lg w-full"
+                        value={school.delegation_type}
+                        onChange={(e) => handleChange('delegation_type', e.target.value)}
+                    >
+                        <option disabled value="Delegation Type">
+                            Delegation Type
+                        </option>
+                        <option value="Individual">Individual</option>
+                        <option value="Class">Class</option>
+                        <option value="Club">Club</option>
+                    </select>
+                </div>
             </div>
 
             <div>
