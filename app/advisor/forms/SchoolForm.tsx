@@ -50,7 +50,8 @@ function SchoolForm({setSchoolLoading}: SchoolFormProps) {
     );
 
     return (
-        <fieldset className="w-full flex flex-col gap-1 p-4 bg-black border-2 border-primary rounded-2xl">
+        <fieldset className="card bg-base-100 shadow-xl border-2 border-primary w-full">
+            <div className="card-body text-base-content">
             <h3 className="text-7xl">Profile</h3>
             <div>
                 <div className="flex flex-row items-center justify-between gap-4">
@@ -226,6 +227,7 @@ function SchoolForm({setSchoolLoading}: SchoolFormProps) {
                 {loading ? <span className="loading loading-spinner"></span> : <></>}
                 Update Profile
             </button>
+            </div>
         </fieldset>
     )
 }

@@ -68,7 +68,8 @@ function CommitteesPanel() {
     }
 
     return (
-            <div className="bg-black flex flex-col gap-2 w-full p-4 border-2 border-primary rounded-2xl">
+            <div className="card bg-base-100 shadow-xl border-2 border-primary w-full">
+                <div className="card-body text-base-content">
                 <div className="flex flex-row gap-10 items-center justify-between">
                     <div className="flex flex-row gap-2">
                         <h4 className="text-5xl">Committee Preferences</h4>
@@ -112,6 +113,7 @@ function CommitteesPanel() {
                     </select>
                     </div>
                 ))}
+                </div>
                 </div>
             </div>
         );

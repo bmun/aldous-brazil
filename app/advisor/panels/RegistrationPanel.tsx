@@ -38,10 +38,11 @@ function RegistrationPanel({setCreatingRegistration, setRegLoading, setPageNum, 
     })()}, []);
 
     return (
-        <div className="bg-black flex flex-col w-full p-4 border-2 border-primary rounded-2xl">
-            <div className="flex flex-row justify-start">
-                <h2 className="text-7xl">Welcome to <span className="text-primary text-nowrap">ALDOUS</span>!</h2>
-            </div>
+        <div className="card bg-base-100 shadow-xl border-2 border-primary w-full">
+            <div className="card-body text-base-content">
+                <div className="flex flex-row justify-start">
+                    <h2 className="text-7xl">Welcome to <span className="text-primary text-nowrap">ALDOUS</span>!</h2>
+                </div>
             {registered && registration !== undefined ?
                 <div className="flex flex-col w-full justify-start text-xl">
                     {registration.is_waitlisted ? 
@@ -93,20 +94,6 @@ function RegistrationPanel({setCreatingRegistration, setRegLoading, setPageNum, 
                         with the features of <span className="text-primary font-bold">Aldous</span>.
                         You can pay for your delegate fees <a className="font-bold text-primary" href="https://www.internationali.org/instore?id=24960059">here</a>.
                     </p>
-                    <div className="flex flex-row flex-wrap gap-4 mt-8 w-full justify-between">
-                        <div className="flex flex-row gap-2 items-center">
-                            <input readOnly type="checkbox" checked={registration.delegate_fees_paid != 0} className="checkbox checkbox-primary" />
-                            <label className="label text-lg">Delegate Fees Paid</label>
-                        </div>
-                        <div className="flex flex-row gap-2 items-center">
-                            <input readOnly type="checkbox" checked={registration.registration_fee_paid} className="checkbox checkbox-primary" />
-                            <label className="label text-lg">Assignments Uploaded</label>
-                        </div>
-                        <div className="flex flex-row gap-2 items-center">
-                            <input readOnly type="checkbox" checked={registration.is_waitlisted} className="checkbox checkbox-primary" />
-                            <label className="label text-lg">Waitlisted</label>
-                        </div>
-                    </div>
                 </div>
                 :
                 <div className="flex flex-col w-full h-full justify-start">
@@ -124,26 +111,9 @@ function RegistrationPanel({setCreatingRegistration, setRegLoading, setPageNum, 
                         onClick={() => setCreatingRegistration(true)}>
                             {waitlistOpen ? "Join Waitlist" : "Register Now"}
                     </button>
-                    <div className="flex flex-row justify-between p-4">
-                        <div className="flex flex-row">
-                            <p className="text-2xl text-center">Registration is&nbsp;</p>
-                            {
-                                regOpen ?
-                                <div className="badge badge-primary badge-xl">Open</div> :
-                                <div className="badge badge-error badge-xl">Closed</div>
-                            }
-                        </div>
-                        <div className="flex flex-row">
-                            <p className="text-2xl text-center">Waitlist is&nbsp;</p>
-                            {
-                                waitlistOpen ?
-                                <div className="badge badge-primary badge-xl">Open</div> :
-                                <div className="badge badge-error badge-xl">Closed</div>
-                            }
-                        </div>
-                    </div>
                 </div>
             }
+            </div>
         </div>
     )
 }

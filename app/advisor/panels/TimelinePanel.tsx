@@ -34,8 +34,9 @@ function TimelinePanel() {
   .sort((a, b) => a.date.getTime() - b.date.getTime());
 
   return (
-    <div className="bg-black w-full border-2 border-primary rounded-2xl p-4 overflow-scroll">
-        <h6 className="text-5xl text-center p-4 text-white">
+    <div className="card bg-base-100 shadow-xl border-2 border-primary w-full">
+      <div className="card-body overflow-scroll text-base-content">
+        <h6 className="text-5xl text-center p-4">
             {(() => {
                 const startDateStr = currentConference?.conference_begins;
                 if (!isValidDate(startDateStr)) return "Start date unknown";
@@ -64,13 +65,13 @@ function TimelinePanel() {
 
             return (
                 <li key={entry.key}>
-                {!isFirst && <hr className={`${isPassed ? "bg-secondary": "bg-white"}`} />}
-                <div className={`timeline-middle`}>
+                {!isFirst && <hr className={isPassed ? "bg-secondary" : "bg-base-300"} />}
+                <div className="timeline-middle">
                     <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 20 20"
                     fill="currentColor"
-                    className={`${isPassed ? "text-secondary h-5 w-5" : "text-white bg-white h-4 w-4 rounded-full m-0.5"}`}
+                    className={isPassed ? "text-secondary h-5 w-5" : "text-primary bg-primary h-4 w-4 rounded-full m-0.5"}
                     >
                     <path
                         fillRule="evenodd"
@@ -79,7 +80,7 @@ function TimelinePanel() {
                     />
                     </svg>
                 </div>
-                <div className={`${sideClass} hover:scale-110 transform transition-transform duration-300 hover:cursor-pointer timeline-box w-full text-white ${!isPassed ? "bg-primary border-white" : "bg-secondary border-white"}`}>
+                <div className={`${sideClass} hover:scale-110 transform transition-transform duration-300 hover:cursor-pointer timeline-box w-full ${!isPassed ? "bg-primary text-primary-content border-base-300" : "bg-secondary text-secondary-content border-base-300"}`}>
                     <div className="flex flex-row gap-2 items-center justify-between">
                     <h3 className="font-bold text-2xl">{toReadableLabel(entry.key)}</h3>
                         {isPassed ?  
@@ -87,7 +88,7 @@ function TimelinePanel() {
                                 xmlns="http://www.w3.org/2000/svg"
                                 viewBox="0 0 20 20"
                                 fill="currentColor"
-                                className="text-white h-6 w-6"
+                                className="h-6 w-6 opacity-90"
                                 >
                                 <path
                                     fillRule="evenodd"
@@ -97,13 +98,14 @@ function TimelinePanel() {
                             </svg>
                         : <div/>}
                     </div>
-                    <p className={`text-lg ${!isPassed ? "text-white" : "text-white"}`}>{format(entry.date, "PP")}</p>
+                    <p className="text-lg">{format(entry.date, "PP")}</p>
                 </div>
-                {!isLast && <hr className={`${isPassed ? "bg-secondary": "bg-white"}`} />}
+                {!isLast && <hr className={isPassed ? "bg-secondary" : "bg-base-300"} />}
                 </li>
             );
             })}
         </ul>
+      </div>
     </div>
   );
 }

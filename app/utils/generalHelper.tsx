@@ -114,7 +114,6 @@ export const defaultConferenceData = {
     current_conference: false
 };
 
-// TODO: Change this, hardcoded for speed
 export const COMMITTEE_LIST: string[] = [
   "ECOFIN",
   "WHO",
@@ -122,6 +121,12 @@ export const COMMITTEE_LIST: string[] = [
   "UNOOSA",
   "DISEC"
 ];
+
+export const SINGLE_COMMITTEE: string[] = [
+
+];
+
+export const WAIVER_URL = "https://waiver.smartwaiver.com/w/xzv2c18nnojoufyp4gssaz/web/";
 
 export const UN_COUNTRIES: string[] = [
   "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda",

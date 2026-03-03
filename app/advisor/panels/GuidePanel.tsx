@@ -11,9 +11,9 @@ interface GuidePanelProps {
 
 function GuidePanel({ topicTitle, imgSrc, helpfulSnippet, invert }: GuidePanelProps) {
   return (
-    <div className={`flex flex-col bg-black border-2 border-primary p-4 ${invert ? "lg:flex-row-reverse" : "lg:flex-row"} gap-6 rounded-lg p-4 items-start w-full mx-auto`}>
+    <div className={`card bg-base-100 shadow-xl border-2 border-primary flex flex-col ${invert ? "lg:flex-row-reverse" : "lg:flex-row"} gap-6 p-4 items-start w-full mx-auto`}>
       {/* Video */}
-      <div className="w-full aspect-video rounded-lg border-2 border-base-300 flex flex-row items-center justify-center">
+      <div className="w-full aspect-video rounded-lg border-2 border-primary flex flex-row items-center justify-center bg-base-200">
         <Image
           src={imgSrc}
           alt="Reg Guide"

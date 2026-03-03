@@ -7,12 +7,18 @@ import TimelinePanel from "../panels/TimelinePanel";
 import FAQPanel from "../panels/FAQPanel";
 import OpeningSkeleton from "../skeletons/OpeningSkeleton";
 import { isWaitlistOpen } from "@/app/utils/supabaseHelpers";
+import ProfileTab from "../../delegate/tabs/ProfileTab";
+import type { DelegateUser } from "../../delegate/page";
+import type { DelegateAssignmentInfo } from "@/app/utils/supabaseHelpers";
 
 interface RegistrationViewProps {
-    setPageNum: Function
+    setPageNum: Function;
+    isIndividual?: boolean;
+    individualDelegate?: DelegateUser | null;
+    individualAssignment?: DelegateAssignmentInfo | null;
 }
 
-function RegistrationView({setPageNum}: RegistrationViewProps) {
+function RegistrationView({ setPageNum, isIndividual = false, individualDelegate, individualAssignment }: RegistrationViewProps) {
     const [regLoading, setRegLoading] = useState(true);
     const [waitlistOpen, setWaitlistOpen] = useState(false);
     const [creatingRegistration, setCreatingRegistration] = useState(false);
@@ -44,8 +50,29 @@ function RegistrationView({setPageNum}: RegistrationViewProps) {
                     <SchoolForm setSchoolLoading={setSchoolLoading} />
                     <FAQPanel />
                 </div>
-                <div className={`${regLoading ? 'hidden' : ''} flex flex-col justify-start items-start h-full w-full pb-24`}>
-                    <TimelinePanel />
+                <div className={`${regLoading ? 'hidden' : ''} flex flex-col gap-10 justify-start items-start h-full w-full pb-24`}>
+                    {isIndividual ? (
+                        <>
+                            {individualAssignment && individualDelegate ? (
+                                <ProfileTab assignment={individualAssignment} delegate={individualDelegate} />
+                            ) : (
+                                <div className="card bg-base-100 shadow-xl border-2 border-primary w-full">
+                                    <div className="card-body text-base-content text-2xl text-center flex flex-col items-center gap-4">
+                                        <img
+                                            src="/BMUN Circle Logo Blue.png"
+                                            alt="BMUN Logo"
+                                            width={160}
+                                            height={160}
+                                        />
+                                        <span>Your assignment is not yet posted.</span>
+                                    </div>
+                                </div>
+                            )}
+                            <TimelinePanel />
+                        </>
+                    ) : (
+                        <TimelinePanel />
+                    )}
                 </div>
             </div>
         </div>
