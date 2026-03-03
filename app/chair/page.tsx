@@ -37,22 +37,6 @@ function ChairView() {
 
     const router = useRouter();
 
-    const committeeSlug = committeeShortName
-        ? (() => {
-              const lower = committeeShortName.toLowerCase();
-
-              if (lower.includes("jcc")) {
-                  return "jcc";
-              }
-
-              if (lower.includes("press")) {
-                  return "presscorps";
-              }
-
-              return encodeURIComponent(lower);
-          })()
-        : null;
-
     useEffect(() => {
         async function loadData() {
             setLoading(true);

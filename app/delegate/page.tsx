@@ -24,23 +24,6 @@ function DelegateView() {
 
     const router = useRouter();
 
-    const committeeSlug = assignment
-        ? (() => {
-              const rawName = assignment.committee_name || "";
-              const lower = rawName.toLowerCase();
-
-              if (lower.includes("jcc")) {
-                  return "jcc";
-              }
-
-              if (lower.includes("press")) {
-                  return "presscorps";
-              }
-
-              return encodeURIComponent(lower);
-          })()
-        : null;
-
     useEffect(() => {
         async function loadData() {
             const user = await getSupabaseUser();

@@ -7,7 +7,6 @@ import {
     getDelegatesAsAdvisor,
     linkDelegateToAssignment,
     removeDelegateFromAssignment,
-    MAX_DELEGATES_PER_SCHOOL,
 } from "@/app/utils/supabaseHelpers";
 import { useEffect, useMemo, useState } from "react";
 import PositionPaperModal from "../modals/PositionPaperModal";

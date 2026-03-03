@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import RegistrationView from "./views/RegistrationView";
 import GuideView from "./views/GuideView";
 import NavBar from "./panels/NavBar";
-import ProfileTab from "../delegate/tabs/ProfileTab";
 import PositionPaperTab from "../delegate/tabs/PositionPaperTab";
 import { getAssignmentForCurrentDelegate, getSchool, getSupabaseUser, DelegateAssignmentInfo, SchoolProps } from "../utils/supabaseHelpers";
 import type { DelegateUser } from "../delegate/page";
